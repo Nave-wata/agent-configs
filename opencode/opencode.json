@@ -2,5 +2,21 @@
   "$schema": "https://opencode.ai/config.json",
   "instructions": [
     ".claude/CLAUDE.md"
-  ]
+  ],
+  "model": "ollama/opencode:latest",
+  "provider": {
+    "ollama": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Ollama (local)",
+      "options": {
+        "baseURL": "http://host.docker.internal:11434/v1",
+        "apiKey": "ollama"
+      },
+      "models": {
+        "opencode:latest": {
+          "name": "opencode:latest"
+        }
+      }
+    }
+  }
 }

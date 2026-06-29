@@ -95,3 +95,32 @@ agent-setup ~/work/my-project   # パス指定でも可
 `review-fix-loop` / `review-iterate` は Claude Code 固有のサブエージェント・MCP オーケストレーションに依存するため、**Claude Code 専用**。
 
 スキル内のリポジトリ参照はハードコードせず、実行時に `gh` / `git remote` から動的取得するため、どのリポジトリでも動作する。
+
+## opencode でローカル ollama を使う（sbx microVM 前提）
+
+`opencode/opencode.json` には、ローカルの ollama に接続する provider 設定を入れてある:
+
+- モデル: `ollama/opencode:latest`（provider `ollama` ＋ モデル `opencode:latest`）
+- `baseURL`: `http://host.docker.internal:11434/v1`
+
+**opencode を sbx（Docker Sandboxes / microVM）で動かす前提**のため、sandbox 内から「ホスト側の ollama」へ越境する必要がある。`localhost` は sandbox 自身を指すので使えない。動かすには次の3つが揃っている必要がある:
+
+1. **ホスト側で ollama を全インターフェースで待受**（既定の `127.0.0.1` だと sandbox から届かない）:
+   ```sh
+   OLLAMA_HOST=0.0.0.0:11434 ollama serve
+   ```
+2. **sbx の outbound 許可**（ホスト宛の通信を許可。名前を許可するだけでは経路はできないので必須）:
+   ```sh
+   sbx policy allow network -g host.docker.internal:11434
+   ```
+3. **sandbox からホストへ到達できるアドレス**：上記は Docker 標準の `host.docker.internal` を前提にしている。sbx microVM でこの名前が解決できない場合は、sandbox 内で `ip route | grep default` のゲートウェイ IP を調べ、`opencode.json` の `baseURL` をその IP に変更する（変更後は `agent-setup` で再展開）。
+
+### 動作確認
+
+```sh
+# sandbox 内から ollama に到達できるか
+curl -s http://host.docker.internal:11434/api/tags
+# 上が応答すれば、opencode 起動後にモデル ollama/opencode:latest が使える
+```
+
+> この設定は **opencode を sbx 経由で動かす場合**を想定している。sandbox を介さず直接 opencode を動かす場合、接続先は `host.docker.internal` ではなく `localhost` になる点に注意（その場合は `baseURL` を `http://localhost:11434/v1` に変える）。
