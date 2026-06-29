@@ -19,8 +19,17 @@
 #
 set -euo pipefail
 
-# --- リポルート（スクリプト自身の位置基準） ---
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# --- リポルート（スクリプト自身の位置基準。symlink 経由で呼ばれても実体を解決） ---
+SOURCE="${BASH_SOURCE[0]}"
+while [ -L "$SOURCE" ]; do
+  DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  case "$SOURCE" in
+    /*) ;;                      # 絶対パスはそのまま
+    *) SOURCE="$DIR/$SOURCE" ;; # 相対 symlink は元ディレクトリ基準で解決
+  esac
+done
+SCRIPT_DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # --- 展開先（引数 or カレント） ---
@@ -41,6 +50,18 @@ SOURCES="claude codex opencode"
 #   .gitignore    … 旧・独立リポ時代の名残。展開先の git 管理に干渉させない
 # settings.local.json は個人共通のローカル設定として配布する（除外しない）。
 EXCLUDE_BASENAMES="settings.json .gitignore"
+
+# 配布元が1つも見つからない場合は無言終了せず明示的に失敗する
+# （symlink 解決ミスなどでリポルートを取り違えていないかの早期検知）。
+_found_src=0
+for src in $SOURCES; do
+  [ -d "$REPO_ROOT/$src" ] && _found_src=1
+done
+if [ "$_found_src" -eq 0 ]; then
+  echo "エラー: 配布元が見つかりません（REPO_ROOT=$REPO_ROOT）。" >&2
+  echo "       agent-setup の配置、またはリポルートの解決を確認してください。" >&2
+  exit 1
+fi
 
 # --- 1. 今回配布するファイルの「展開先相対パス」一覧を収集しつつコピー ---
 new_files=""
@@ -73,7 +94,7 @@ if [ -f "$MANIFEST" ]; then
 fi
 
 # --- 3. 新マニフェストを書き出し（ソート・重複排除） ---
-printf '%s' "$new_files" | grep -v '^$' | LC_ALL=C sort -u > "$MANIFEST"
+printf '%s' "$new_files" | grep -v '^$' | LC_ALL=C sort -u > "$MANIFEST" || true
 
 # --- 4. 配布先の空ディレクトリを掃除 ---
 for src in $SOURCES; do
