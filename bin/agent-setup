@@ -37,9 +37,10 @@ MANIFEST="$TARGET/.agent-configs-manifest"
 SOURCES="claude codex opencode"
 
 # 配布から除外するファイル名（basename 一致）。
-#   settings*.json … プロジェクトごとに管理されるため配布・上書きしない（opt-in 不採用）
-#   .gitignore     … 旧・独立リポ時代の名残。展開先の git 管理に干渉させない
-EXCLUDE_BASENAMES="settings.json settings.local.json .gitignore"
+#   settings.json … プロジェクトごとに管理される（プロジェクトの git に入る）ため配布しない
+#   .gitignore    … 旧・独立リポ時代の名残。展開先の git 管理に干渉させない
+# settings.local.json は個人共通のローカル設定として配布する（除外しない）。
+EXCLUDE_BASENAMES="settings.json .gitignore"
 
 # --- 1. 今回配布するファイルの「展開先相対パス」一覧を収集しつつコピー ---
 new_files=""

@@ -10,7 +10,6 @@ __pycache__/
 # OS
 .DS_Store
 
-# プロジェクトごとに管理される設定（このリポでは配布も追跡もしない）
-# 共有ベースラインが必要になった場合は opt-in で明示的に解除する
+# settings.json はプロジェクトごとに管理されるため、このリポでは配布も追跡もしない
+# （settings.local.json は個人共通のローカル設定として配布・追跡する）
 **/settings.json
-**/settings.local.json

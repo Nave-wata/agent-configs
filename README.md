@@ -56,12 +56,11 @@ agent-setup ~/work/my-project   # パス指定でも可
 
 これにより「中央で削除した設定はちゃんと反映」しつつ「プロジェクト固有の `.claude` 配下ファイルは保護」を両立する。
 
-### 配布から除外されるファイル
+### 設定ファイルの配布
 
-以下はプロジェクトごとに管理されることが多いため、**配布も上書きもしない**（`bin/agent-setup` の `EXCLUDE_BASENAMES`）:
-
-- `settings.json` / `settings.local.json`
-- `.gitignore`
+- `settings.json` … プロジェクトごとに管理される（プロジェクトの git に入る）ため**配布しない**。各プロジェクトの既存 `settings.json` はマニフェスト管理外なので触らない（保護）
+- `settings.local.json` … 個人共通のローカル設定として**配布する**
+- `.gitignore` … 配布しない（旧・独立リポ時代の名残）
 
 ## 各ツールの内容
 
