@@ -13,3 +13,8 @@ __pycache__/
 # settings.json はプロジェクトごとに管理されるため、このリポでは配布も追跡もしない
 # （settings.local.json は個人共通のローカル設定として配布・追跡する）
 **/settings.json
+
+# グローバルの ~/.config/git/ignore が **/CLAUDE.md と **/opencode.json を無視するが、
+# このリポでは配布物なので追跡対象に戻す（打ち消し）
+!**/CLAUDE.md
+!**/opencode.json
