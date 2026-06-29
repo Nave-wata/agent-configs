@@ -1,0 +1,16 @@
+# Python（codex hooks の生成物）
+__pycache__/
+*.pyc
+*.pyo
+
+# ログ・キャッシュ
+*.log
+.cache/
+
+# OS
+.DS_Store
+
+# プロジェクトごとに管理される設定（このリポでは配布も追跡もしない）
+# 共有ベースラインが必要になった場合は opt-in で明示的に解除する
+**/settings.json
+**/settings.local.json

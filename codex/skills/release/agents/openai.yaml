@@ -1,0 +1,4 @@
+interface:
+  display_name: "Release"
+  short_description: "Prepare a GitHub Release from a merged PR."
+  default_prompt: "Prepare a release from a merged PR using the repository's release rules."

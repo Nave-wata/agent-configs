@@ -1,0 +1,60 @@
+# Project-scoped Codex configuration.
+# Codex loads this file only when this repository is trusted.
+
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+default_permissions = "standard"
+
+model_reasoning_effort = "high"
+model_verbosity = "medium"
+model_instructions_file = "instructions.md"
+
+project_doc_max_bytes = 65536
+project_doc_fallback_filenames = ["CLAUDE.md"]
+
+web_search = "cached"
+
+[features]
+hooks = true
+
+[tui]
+status_line = ["model-with-reasoning", "context-remaining", "git-branch", "current-dir"]
+terminal_title = ["spinner", "project", "git-branch"]
+
+[shell_environment_policy]
+inherit = "core"
+ignore_default_excludes = false
+exclude = [
+  "AWS_*",
+  "AZURE_*",
+  "GOOGLE_*",
+  "GCP_*",
+  "*KEY*",
+  "*SECRET*",
+  "*TOKEN*",
+  "*PASSWORD*",
+]
+
+[permissions.standard.filesystem]
+glob_scan_max_depth = 6
+
+[permissions.standard.filesystem.":workspace_roots"]
+"." = "write"
+"**/.env" = "deny"
+"**/.env.*" = "deny"
+"**/id_rsa*" = "deny"
+"**/id_ed25519*" = "deny"
+"**/*.key" = "deny"
+"**/*.pem" = "deny"
+
+[permissions.standard.network]
+enabled = true
+mode = "limited"
+allow_local_binding = false
+
+[permissions.standard.network.domains]
+"github.com" = "allow"
+"api.github.com" = "allow"
+"developers.openai.com" = "allow"
+"platform.openai.com" = "allow"
+

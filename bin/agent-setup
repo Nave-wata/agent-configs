@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+#
+# agent-setup — agent-configs のエージェント設定を対象プロジェクトへ展開する。
+#
+#   使い方:
+#     agent-setup            # カレントディレクトリへ展開
+#     agent-setup <path>     # 指定ディレクトリへ展開
+#
+#   方式:
+#     リポジトリ内の各ソースディレクトリ（claude/ codex/ opencode/）を、
+#     対象プロジェクトの .claude/ .codex/ .opencode/ へコピーする。
+#     スクリプト自身の位置からリポルートを解決するため、リポをどこに
+#     置いても動作する（ディレクトリ非依存）。
+#
+#   更新（マニフェスト方式）:
+#     展開したファイル一覧を対象プロジェクトの .agent-configs-manifest に記録する。
+#     再実行時は「前回配ったが今回ソースに無いファイル」だけを削除し、
+#     マニフェストに無いファイル（プロジェクト固有のファイル）は一切触らない。
+#
+set -euo pipefail
+
+# --- リポルート（スクリプト自身の位置基準） ---
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# --- 展開先（引数 or カレント） ---
+TARGET_ARG="${1:-$PWD}"
+if [ ! -d "$TARGET_ARG" ]; then
+  echo "エラー: 展開先ディレクトリが存在しません: $TARGET_ARG" >&2
+  exit 1
+fi
+TARGET="$(cd "$TARGET_ARG" && pwd)"
+
+MANIFEST="$TARGET/.agent-configs-manifest"
+
+# 配布するソースディレクトリ（トップレベル名）。それぞれ .<name> へ展開する。
+SOURCES="claude codex opencode"
+
+# 配布から除外するファイル名（basename 一致）。
+#   settings*.json … プロジェクトごとに管理されるため配布・上書きしない（opt-in 不採用）
+#   .gitignore     … 旧・独立リポ時代の名残。展開先の git 管理に干渉させない
+EXCLUDE_BASENAMES="settings.json settings.local.json .gitignore"
+
+# --- 1. 今回配布するファイルの「展開先相対パス」一覧を収集しつつコピー ---
+new_files=""
+for src in $SOURCES; do
+  src_dir="$REPO_ROOT/$src"
+  [ -d "$src_dir" ] || continue
+  dest_dir="$TARGET/.$src"
+  while IFS= read -r f; do
+    base="$(basename "$f")"
+    case " $EXCLUDE_BASENAMES " in *" $base "*) continue ;; esac  # 除外対象はスキップ
+    rel="${f#"$src_dir"/}"            # ソース内の相対パス
+    dest_rel=".$src/$rel"            # 展開先相対パス（.claude/... など）
+    mkdir -p "$dest_dir/$(dirname "$rel")"
+    cp "$f" "$dest_dir/$rel"
+    new_files="$new_files$dest_rel
+"
+  done < <(find "$src_dir" -type f)
+done
+
+# --- 2. 旧マニフェストにあって今回配らなかったファイルを削除 ---
+#        （マニフェストに無い＝プロジェクト固有のファイルは対象外） ---
+if [ -f "$MANIFEST" ]; then
+  while IFS= read -r old; do
+    [ -z "$old" ] && continue
+    # 今回の配布対象に含まれているか確認
+    if ! printf '%s' "$new_files" | grep -qxF "$old"; then
+      rm -f "$TARGET/$old"
+    fi
+  done < "$MANIFEST"
+fi
+
+# --- 3. 新マニフェストを書き出し（ソート・重複排除） ---
+printf '%s' "$new_files" | grep -v '^$' | LC_ALL=C sort -u > "$MANIFEST"
+
+# --- 4. 配布先の空ディレクトリを掃除 ---
+for src in $SOURCES; do
+  d="$TARGET/.$src"
+  [ -d "$d" ] && find "$d" -type d -empty -delete 2>/dev/null || true
+done
+
+count="$(grep -c . "$MANIFEST" 2>/dev/null || echo 0)"
+echo "展開完了: $TARGET （管理ファイル ${count} 件）"
+echo "マニフェスト: $MANIFEST"
