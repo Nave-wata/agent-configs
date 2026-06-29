@@ -103,24 +103,31 @@ agent-setup ~/work/my-project   # パス指定でも可
 - モデル: `ollama/opencode:latest`（provider `ollama` ＋ モデル `opencode:latest`）
 - `baseURL`: `http://host.docker.internal:11434/v1`
 
-**opencode を sbx（Docker Sandboxes / microVM）で動かす前提**のため、sandbox 内から「ホスト側の ollama」へ越境する必要がある。`localhost` は sandbox 自身を指すので使えない。動かすには次の3つが揃っている必要がある:
+**opencode を sbx（Docker Sandboxes / microVM）で動かす前提**のため、sandbox 内から「ホスト側の ollama」へ越境する。ここで **2つのアドレスは別物**なので分けて考える:
 
-1. **ホスト側で ollama を全インターフェースで待受**（既定の `127.0.0.1` だと sandbox から届かない）:
-   ```sh
-   OLLAMA_HOST=0.0.0.0:11434 ollama serve
-   ```
-2. **sbx の outbound 許可**（ホスト宛の通信を許可。名前を許可するだけでは経路はできないので必須）:
-   ```sh
-   sbx policy allow network -g host.docker.internal:11434
-   ```
-3. **sandbox からホストへ到達できるアドレス**：上記は Docker 標準の `host.docker.internal` を前提にしている。sbx microVM でこの名前が解決できない場合は、sandbox 内で `ip route | grep default` のゲートウェイ IP を調べ、`opencode.json` の `baseURL` をその IP に変更する（変更後は `agent-setup` で再展開）。
+- **`baseURL`（sandbox 側＝opencode.json）** … sandbox からホストを見つけるアドレス。`host.docker.internal`（`localhost` は sandbox 自身を指すので不可）。**セキュリティとは無関係**で変更不要。
+- **`OLLAMA_HOST`（ホスト側＝ollama の待受インターフェース）** … LAN への露出を決める**唯一のセキュリティ設定**。
 
-### 動作確認
+### 1. ollama の待受（LAN に露出させない）
+
+LAN 上の他マシンから ollama に届かないよう、待受インターフェースを絞る。セキュアな順に:
+
+1. **デフォルトの `127.0.0.1`（ローカル限定）のまま試す**（推奨）。Docker Desktop for Mac では sandbox から `host.docker.internal` 経由でホストの `127.0.0.1` に届くことが多く、これなら **LAN 露出はゼロ**。
+   - sandbox 内で到達確認: `curl -s http://host.docker.internal:11434/api/tags`
+   - **応答する → これで完了**（最も安全）
+2. **届かない場合のみ**、`0.0.0.0`（全 NIC）ではなく **sandbox が来るブリッジ IP だけ**に bind する。sandbox 内で `ip route | grep default` のゲートウェイを調べ、ホスト側の対応ブリッジ IP で `OLLAMA_HOST=<bridge-ip>:11434 ollama serve`。物理 NIC を除外するので LAN からは到達できない。
+3. **最終手段**: `0.0.0.0`（LAN 全体に露出）＋ ホストのファイアウォール（macOS pf 等）で `:11434` を Docker サブネットに限定。最も非推奨。
+
+### 2. sbx の outbound 許可
+
+sandbox からホスト宛の通信を許可する。**これは sandbox の outbound 制御であって、ホストポートの LAN 隔離とは無関係**（LAN 隔離は上記 1 の待受アドレスだけで決まる）:
 
 ```sh
-# sandbox 内から ollama に到達できるか
-curl -s http://host.docker.internal:11434/api/tags
-# 上が応答すれば、opencode 起動後にモデル ollama/opencode:latest が使える
+sbx policy allow network -g host.docker.internal:11434
 ```
 
-> この設定は **opencode を sbx 経由で動かす場合**を想定している。sandbox を介さず直接 opencode を動かす場合、接続先は `host.docker.internal` ではなく `localhost` になる点に注意（その場合は `baseURL` を `http://localhost:11434/v1` に変える）。
+### 3. host.docker.internal が解決しない場合
+
+`host.docker.internal` は Docker 標準名だが、sbx microVM で解決できない場合は sandbox 内 `ip route | grep default` のゲートウェイ IP を `opencode.json` の `baseURL` に設定し、`agent-setup` で再展開する。
+
+> sandbox を介さず直接 opencode を動かす場合、`baseURL` は `host.docker.internal` ではなく `localhost`（`http://localhost:11434/v1`）に変える。
