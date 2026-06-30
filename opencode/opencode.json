@@ -53,5 +53,15 @@
         }
       }
     }
+  },
+  "mcp": {
+    "brave-search": {
+      "type": "local",
+      "command": ["npx", "-y", "@brave/brave-search-mcp-server"],
+      "enabled": true,
+      "environment": {
+        "BRAVE_API_KEY": "<BRAVE_API_KEY>"
+      }
+    }
   }
 }
