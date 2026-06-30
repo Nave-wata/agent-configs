@@ -3,6 +3,41 @@
   "instructions": [
     ".claude/CLAUDE.md"
   ],
+  "permission": {
+    "*": "allow",
+    "bash": {
+      "*": "allow",
+      "sudo*": "deny",
+      "git config*": "deny",
+      "brew install*": "deny",
+      "chmod 777*": "deny",
+      "aws*": "deny",
+      "cdk deploy*": "deny",
+      "cdk destroy*": "deny",
+      "claude*": "deny",
+      "codex*": "deny",
+      "gemini*": "deny"
+    },
+    "read": {
+      "*": "allow",
+      "*.env": "deny",
+      "*.env.*": "deny",
+      "*.env.example": "allow",
+      "id_rsa*": "deny",
+      "id_ed25519*": "deny",
+      "*.key": "deny",
+      "*.pem": "deny"
+    },
+    "edit": {
+      "*": "allow",
+      "*.env": "deny",
+      "*.env.*": "deny",
+      "id_rsa*": "deny",
+      "id_ed25519*": "deny",
+      "*.key": "deny",
+      "*.pem": "deny"
+    }
+  },
   "model": "ollama/opencode:latest",
   "provider": {
     "ollama": {
