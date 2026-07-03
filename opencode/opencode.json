@@ -38,18 +38,24 @@
       "*.pem": "deny"
     }
   },
-  "model": "ollama/opencode:latest",
+  "model": "ollama/ornith",
   "provider": {
     "ollama": {
       "npm": "@ai-sdk/openai-compatible",
-      "name": "Ollama (local)",
+      "name": "llama.cpp (local)",
       "options": {
-        "baseURL": "http://host.docker.internal:11434/v1",
-        "apiKey": "ollama"
+        "baseURL": "http://host.docker.internal:12711/v1",
+        "apiKey": "llama"
       },
       "models": {
-        "opencode:latest": {
-          "name": "opencode:latest"
+        "ornith": {
+          "name": "Ornith 1.0 35B",
+          "limit": {
+            "context": 262144,
+            "output": 32768
+          },
+          "reasoning": true,
+          "tool_call": true
         }
       }
     }
