@@ -22,9 +22,10 @@ agent-configs/
 ### 初回セットアップ（任意：PATH を通す）
 
 ```sh
-# どのプロジェクトからでも `agent-setup` と打てるようにする例
-ln -s ~/Tools/agent-configs/bin/agent-setup /usr/local/bin/agent-setup
-# もしくは alias agent-setup="~/Tools/agent-configs/bin/agent-setup"
+git clone git@github.com:Nave-wata/agent-configs.git
+cd agent-configs
+ln -s bin/agent-setup /usr/local/bin/agent-setup
+# もしくは alias agent-setup="$(pwd)/bin/agent-setup"
 ```
 
 スクリプトは**自身の位置からリポルートを解決する**ため、このリポジトリをどこに置いても動作する。
@@ -60,7 +61,7 @@ agent-setup ~/work/my-project   # パス指定でも可
 
 - `settings.json` … プロジェクトごとに管理される（プロジェクトの git に入る）ため**配布しない**。各プロジェクトの既存 `settings.json` はマニフェスト管理外なので触らない（保護）
 - `settings.local.json` … 個人共通のローカル設定として**配布する**
-- `.gitignore` … 配布しない（旧・独立リポ時代の名残）
+- `.gitignore` … 配布しない（展開先の git 管理に干渉しないため）
 
 ## 各ツールの内容
 
@@ -96,38 +97,42 @@ agent-setup ~/work/my-project   # パス指定でも可
 
 スキル内のリポジトリ参照はハードコードせず、実行時に `gh` / `git remote` から動的取得するため、どのリポジトリでも動作する。
 
-## opencode でローカル ollama を使う（sbx microVM 前提）
+## 推論 API の設定
 
-`opencode/opencode.json` には、ローカルの ollama に接続する provider 設定を入れてある:
+`opencode/opencode.json` には推論 API の provider 設定を記載する。利用する API（ollama、llama.cpp、OpenAI 互換 API 等）に応じて `baseURL`・`apiKey`・`model` を設定する。
 
-- モデル: `ollama/opencode:latest`（provider `ollama` ＋ モデル `opencode:latest`）
-- `baseURL`: `http://host.docker.internal:11434/v1`
+### ローカル推論サーバーを使う場合（sbx microVM 前提）
 
-**opencode を sbx（Docker Sandboxes / microVM）で動かす前提**のため、sandbox 内から「ホスト側の ollama」へ越境する。ここで **2つのアドレスは別物**なので分けて考える:
+例：llama.cpp を 12711 ポートで動かす場合:
+
+- `baseURL`: `http://host.docker.internal:12711/v1`
+- `apiKey`: 任意（例: `llama`）
+
+**opencode を sbx（Docker Sandboxes / microVM）で動かす前提**のため、sandbox 内から「ホスト側の推論サーバー」へ越境する。ここで **2つのアドレスは別物**なので分けて考える:
 
 - **`baseURL`（sandbox 側＝opencode.json）** … sandbox からホストを見つけるアドレス。`host.docker.internal`（`localhost` は sandbox 自身を指すので不可）。**セキュリティとは無関係**で変更不要。
-- **`OLLAMA_HOST`（ホスト側＝ollama の待受インターフェース）** … LAN への露出を決める**唯一のセキュリティ設定**。
+- **待受インターフェース（ホスト側）** … LAN への露出を決める**唯一のセキュリティ設定**。
 
-### 1. ollama の待受（LAN に露出させない）
+### 待受インターフェースの制限（LAN に露出させない）
 
-LAN 上の他マシンから ollama に届かないよう、待受インターフェースを絞る。セキュアな順に:
+LAN 上の他マシンから推論サーバーに届かないよう、待受インターフェースを絞る。セキュアな順に:
 
-1. **デフォルトの `127.0.0.1`（ローカル限定）のまま試す**（推奨）。Docker Desktop for Mac では sandbox から `host.docker.internal` 経由でホストの `127.0.0.1` に届くことが多く、これなら **LAN 露出はゼロ**。
-   - sandbox 内で到達確認: `curl -s http://host.docker.internal:11434/api/tags`
+1. **`127.0.0.1`（ローカル限定）のまま試す**（推奨）。Docker Desktop for Mac では sandbox から `host.docker.internal` 経由でホストの `127.0.0.1` に届くことが多く、これなら **LAN 露出はゼロ**。
+   - sandbox 内で到達確認: `curl -s http://host.docker.internal:<port>/v1/models`
    - **応答する → これで完了**（最も安全）
-2. **届かない場合のみ**、`0.0.0.0`（全 NIC）ではなく **sandbox が来るブリッジ IP だけ**に bind する。sandbox 内で `ip route | grep default` のゲートウェイを調べ、ホスト側の対応ブリッジ IP で `OLLAMA_HOST=<bridge-ip>:11434 ollama serve`。物理 NIC を除外するので LAN からは到達できない。
-3. **最終手段**: `0.0.0.0`（LAN 全体に露出）＋ ホストのファイアウォール（macOS pf 等）で `:11434` を Docker サブネットに限定。最も非推奨。
+2. **届かない場合のみ**、`0.0.0.0`（全 NIC）ではなく **sandbox が来るブリッジ IP だけ**に bind する。sandbox 内で `ip route | grep default` のゲートウェイを調べ、ホスト側の対応ブリッジ IP で待受を設定。物理 NIC を除外するので LAN からは到達できない。
+3. **最終手段**: `0.0.0.0`（LAN 全体に露出）＋ ホストのファイアウォール（macOS pf 等）で `:<port>` を Docker サブネットに限定。最も非推奨。
 
-### 2. sbx の outbound 許可
+### sbx の outbound 許可
 
-sandbox からホスト宛の通信を許可する。**これは sandbox の outbound 制御であって、ホストポートの LAN 隔離とは無関係**（LAN 隔離は上記 1 の待受アドレスだけで決まる）:
+sandbox からホスト宛の通信を許可する。**これは sandbox の outbound 制御であって、ホストポートの LAN 隔離とは無関係**（LAN 隔離は上記の待受アドレスだけで決まる）:
 
 ```sh
-sbx policy allow network -g host.docker.internal:11434
+sbx policy allow network -g host.docker.internal:<port>
 ```
 
-### 3. host.docker.internal が解決しない場合
+### host.docker.internal が解決しない場合
 
 `host.docker.internal` は Docker 標準名だが、sbx microVM で解決できない場合は sandbox 内 `ip route | grep default` のゲートウェイ IP を `opencode.json` の `baseURL` に設定し、`agent-setup` で再展開する。
 
-> sandbox を介さず直接 opencode を動かす場合、`baseURL` は `host.docker.internal` ではなく `localhost`（`http://localhost:11434/v1`）に変える。
+> sandbox を介さず直接 opencode を動かす場合、`baseURL` は `host.docker.internal` ではなく `localhost`（`http://localhost:<port>/v1`）に変える。
