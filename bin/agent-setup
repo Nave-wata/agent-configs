@@ -17,6 +17,13 @@
 #     再実行時は「前回配ったが今回ソースに無いファイル」だけを削除し、
 #     マニフェストに無いファイル（プロジェクト固有のファイル）は一切触らない。
 #
+#   出力:
+#     再実行のたびに何が変わったかを可視化する。ファイルごとに
+#     追加(+) / 更新(~) / 削除(-) を判定し、ツール別（.claude/.codex/.opencode）に
+#     集計したうえで変更ファイルを一覧表示する。無変更のものは表示しない。
+#     色は stdout が端末のときだけ付与し、パイプ/リダイレクト時や NO_COLOR
+#     設定時は自動で無色にフォールバックする。
+#
 set -euo pipefail
 
 # --- リポルート（スクリプト自身の位置基準。symlink 経由で呼ばれても実体を解決） ---
@@ -51,6 +58,14 @@ SOURCES="claude codex opencode"
 # settings.local.json は個人共通のローカル設定として配布する（除外しない）。
 EXCLUDE_BASENAMES="settings.json .gitignore"
 
+# --- 色（stdout が端末で、NO_COLOR 未設定のときだけ付与） ---
+if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
+  C_ADD=$'\033[32m'; C_UPD=$'\033[33m'; C_DEL=$'\033[31m'
+  C_DIM=$'\033[2m';  C_BOLD=$'\033[1m'; C_RST=$'\033[0m'
+else
+  C_ADD=''; C_UPD=''; C_DEL=''; C_DIM=''; C_BOLD=''; C_RST=''
+fi
+
 # 配布元が1つも見つからない場合は無言終了せず明示的に失敗する
 # （symlink 解決ミスなどでリポルートを取り違えていないかの早期検知）。
 _found_src=0
@@ -63,8 +78,13 @@ if [ "$_found_src" -eq 0 ]; then
   exit 1
 fi
 
-# --- 1. 今回配布するファイルの「展開先相対パス」一覧を収集しつつコピー ---
+# --- 1. 今回配布するファイルをコピーしつつ、追加/更新を分類する ---
+#        added_files   … 展開先に無かった（新規）ファイル
+#        updated_files … 既存だが内容が変わったファイル
+#        （内容が同一のものはどちらにも記録しない＝出力に出さない）
 new_files=""
+added_files=""
+updated_files=""
 for src in $SOURCES; do
   src_dir="$REPO_ROOT/$src"
   [ -d "$src_dir" ] || continue
@@ -74,21 +94,32 @@ for src in $SOURCES; do
     case " $EXCLUDE_BASENAMES " in *" $base "*) continue ;; esac  # 除外対象はスキップ
     rel="${f#"$src_dir"/}"            # ソース内の相対パス
     dest_rel=".$src/$rel"            # 展開先相対パス（.claude/... など）
+    dest_path="$dest_dir/$rel"
+    if [ ! -e "$dest_path" ]; then
+      added_files="$added_files$dest_rel
+"
+    elif ! cmp -s "$f" "$dest_path"; then
+      updated_files="$updated_files$dest_rel
+"
+    fi
     mkdir -p "$dest_dir/$(dirname "$rel")"
-    cp "$f" "$dest_dir/$rel"
+    cp "$f" "$dest_path"
     new_files="$new_files$dest_rel
 "
   done < <(find "$src_dir" -type f)
 done
 
-# --- 2. 旧マニフェストにあって今回配らなかったファイルを削除 ---
+# --- 2. 旧マニフェストにあって今回配らなかったファイルを削除（削除分を記録） ---
 #        （マニフェストに無い＝プロジェクト固有のファイルは対象外） ---
+deleted_files=""
 if [ -f "$MANIFEST" ]; then
   while IFS= read -r old; do
     [ -z "$old" ] && continue
     # 今回の配布対象に含まれているか確認
     if ! printf '%s' "$new_files" | grep -qxF "$old"; then
       rm -f "$TARGET/$old"
+      deleted_files="$deleted_files$old
+"
     fi
   done < "$MANIFEST"
 fi
@@ -102,6 +133,42 @@ for src in $SOURCES; do
   [ -d "$d" ] && find "$d" -type d -empty -delete 2>/dev/null || true
 done
 
+# --- 5. サマリー出力 ---
 count="$(grep -c . "$MANIFEST" 2>/dev/null || echo 0)"
-echo "展開完了: $TARGET （管理ファイル ${count} 件）"
-echo "マニフェスト: $MANIFEST"
+
+# リスト整形/集計ヘルパ
+_lines() { printf '%s' "$1" | grep -v '^$'; }              # 空行を除いた行を出す
+_cnt()   { _lines "$1" | grep -c "^\\.$2/" || true; }      # $2=ツール名 の件数
+
+printf '\n%sagent-setup%s → %s\n\n' "$C_BOLD" "$C_RST" "$TARGET"
+
+# ツール別サマリー（変更のあったツールのみ）
+any_change=0
+for src in $SOURCES; do
+  a="$(_cnt "$added_files" "$src")"
+  u="$(_cnt "$updated_files" "$src")"
+  d="$(_cnt "$deleted_files" "$src")"
+  [ "$a" -eq 0 ] && [ "$u" -eq 0 ] && [ "$d" -eq 0 ] && continue
+  any_change=1
+  printf '  %-10s' ".$src"
+  [ "$a" -gt 0 ] && printf ' %s+ %s%s' "$C_ADD" "$a" "$C_RST"
+  [ "$u" -gt 0 ] && printf ' %s~ %s%s' "$C_UPD" "$u" "$C_RST"
+  [ "$d" -gt 0 ] && printf ' %s- %s%s' "$C_DEL" "$d" "$C_RST"
+  printf '\n'
+done
+
+# 変更ファイル一覧（+ 追加 / ~ 更新 / - 削除）。各グループ内はパスでソート
+if [ "$any_change" -eq 1 ]; then
+  printf '\n'
+  # 各グループは空のことがある。空だと grep -v が非0で pipefail+set -e に引っかかるため || true で吸収する。
+  _lines "$added_files"   | LC_ALL=C sort | while IFS= read -r p; do printf '  %s+%s %s\n' "$C_ADD" "$C_RST" "$p"; done || true
+  _lines "$updated_files" | LC_ALL=C sort | while IFS= read -r p; do printf '  %s~%s %s\n' "$C_UPD" "$C_RST" "$p"; done || true
+  _lines "$deleted_files" | LC_ALL=C sort | while IFS= read -r p; do printf '  %s-%s %s\n' "$C_DEL" "$C_RST" "$p"; done || true
+fi
+
+printf '\n'
+if [ "$any_change" -eq 0 ]; then
+  printf '%s✓%s %s files managed  %s·  変更なし%s\n' "$C_ADD" "$C_RST" "$count" "$C_DIM" "$C_RST"
+else
+  printf '%s✓%s %s files managed  %s·%s %s\n' "$C_ADD" "$C_RST" "$count" "$C_DIM" "$C_RST" "$MANIFEST"
+fi
