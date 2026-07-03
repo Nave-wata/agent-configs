@@ -3,6 +3,9 @@
   "instructions": [
     ".claude/CLAUDE.md"
   ],
+  "share": "disabled",
+  "autoupdate": false,
+  "small_model": "ollama/ornith",
   "permission": {
     "*": "allow",
     "bash": {
