@@ -36,6 +36,8 @@ Co-Authored-By: Codex <noreply@openai.com>
 
 Use a heredoc-style message when invoking `git commit`. The detail body may be omitted for trivial changes.
 
+The summary line (line 1) must state *how the code changed*. Never use vague messages like `レビュー対応`, `指摘修正`, or `修正` that don't say what changed — even for review-driven fixes, express the actual change (e.g. `[fix]: null 参照でクラッシュする問題を修正`, `[refactor]: 重複バリデーションを共通関数に集約`). If you want to record *why* the change was made (e.g. "raised in review"), put that in the `変更の経緯` body line or the Issue knowledge comment, not the summary line.
+
 ## Issue Knowledge Comment
 
 After committing, update or create one integrated Issue comment marked with `<!-- codex-dev-log -->`.
