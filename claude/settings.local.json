@@ -70,7 +70,7 @@
   "agentPushNotifEnabled": true,
   "skipAutoPermissionPrompt": true,
   "voiceEnabled": true,
-  "effort": "high",
+  "effort": "xhigh",
   "feedbackSurveyState": {
     "lastShownTime": 1759987200753
   }
