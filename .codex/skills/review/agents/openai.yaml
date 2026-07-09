@@ -1,0 +1,4 @@
+interface:
+  display_name: "Review"
+  short_description: "Review code changes for bugs, security, and design."
+  default_prompt: "Review the current change for correctness, security, and design risks."

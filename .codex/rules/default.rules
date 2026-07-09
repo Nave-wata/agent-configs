@@ -1,0 +1,51 @@
+# Project command policy.
+
+prefix_rule(
+    pattern = ["git", "push", "origin", "main"],
+    decision = "forbidden",
+    justification = "Do not push directly to main. Create a feature branch and open a PR.",
+    match = ["git push origin main"],
+)
+
+prefix_rule(
+    pattern = ["git", "push", "--force"],
+    decision = "forbidden",
+    justification = "Force push is destructive and requires explicit user confirmation outside the default workflow.",
+    match = ["git push --force origin feature/example"],
+)
+
+prefix_rule(
+    pattern = ["git", "push", "--force-with-lease"],
+    decision = "forbidden",
+    justification = "Force push is destructive and requires explicit user confirmation outside the default workflow.",
+    match = ["git push --force-with-lease origin feature/example"],
+)
+
+prefix_rule(
+    pattern = ["sudo"],
+    decision = "forbidden",
+    justification = "Privileged local commands are outside this repository workflow.",
+    match = ["sudo systemctl restart apache2"],
+)
+
+prefix_rule(
+    pattern = ["aws"],
+    decision = "forbidden",
+    justification = "AWS mutations must not be performed automatically.",
+    match = ["aws s3 rm s3://example --recursive"],
+)
+
+prefix_rule(
+    pattern = ["cdk", "deploy"],
+    decision = "forbidden",
+    justification = "Cloud deployment must be performed manually after review.",
+    match = ["cdk deploy"],
+)
+
+prefix_rule(
+    pattern = ["cdk", "destroy"],
+    decision = "forbidden",
+    justification = "Cloud destruction must never be automated by Codex.",
+    match = ["cdk destroy"],
+)
+
