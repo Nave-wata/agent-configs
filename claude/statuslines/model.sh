@@ -3,14 +3,16 @@
 input=$(cat)
 
 model_id=$(echo "$input" | jq -r '.model.id')
-if [[ "$model_id" == claude-fable-5* ]]; then
-    MODEL_NAME="👑 Fable 5"
-elif [[ "$model_id" == claude-opus-4-8* ]]; then
-    MODEL_NAME="🏆 Opus 4.8"
-elif [[ "$model_id" == claude-sonnet-5* ]]; then
-    MODEL_NAME="⭐️ Sonnet 5"
-else
-    MODEL_NAME="Unknown Model"
+model_name=$(echo "$input" | jq -r '.model.display_name')
+
+if [[ "$model_id" == *-fable-* ]]; then
+    symbol="💎"
+elif [[ "$model_id" == *-opus-* ]]; then
+    symbol="🏆"
+elif [[ "$model_id" == *-sonnet-* ]]; then
+    symbol="⭐️"
+elif [[ "$model_id" == *-haiku-* ]]; then
+    symbol="🍀"
 fi
 
-echo "$MODEL_NAME"
+echo "$symbol $model_name"
