@@ -15,4 +15,6 @@ elif [[ "$model_id" == *-haiku-* ]]; then
     symbol="🍀"
 fi
 
-echo "$symbol $model_name"
+effort_level="$(echo "$input" | jq -r '.effort.level')"
+
+echo -e "$symbol $model_name ($effort_level)"
