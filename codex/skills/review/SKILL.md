@@ -18,7 +18,7 @@ GitHub API URLs take the form `https://api.github.com/repos/${REPO}/...` (TLS fa
 
 ## Scope
 
-Review as a code reviewer. Findings lead the response, ordered by severity, with file and line references when possible. Focus on bugs, behavior regressions, missing checks, and missing verification. Codex performs the review itself; do not delegate to subagents or external review services.
+Review as a code reviewer. Findings lead the response, ordered by severity, with file and line references when possible. Focus on bugs, behavior regressions, missing checks, and missing verification. Codex performs the review itself by default and must not delegate to external review services. When the review is broad, security-sensitive, performance-sensitive, or crosses authentication, authorization, SQL, multilingual, or external API boundaries, consult the `advisor` custom agent once for a narrow read-only second opinion. Verify any advisor finding against the diff before reporting it.
 
 ## Process
 

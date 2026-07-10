@@ -74,6 +74,7 @@ agent-setup ~/work/my-project   # パス指定でも可
 ### Codex（`codex/`）
 
 - `config.toml`・`instructions.md`・`rules/`・`hooks/`
+- `agents/` … 高難度・高リスクな判断時だけ `gpt-5.6-sol` を使う読み取り専用 Advisor
 - `skills/` … `commit`・`create-pr`・`review`・`release`（Codex 適応版。`$commit` のように起動）
 
 ### opencode（`opencode/`）

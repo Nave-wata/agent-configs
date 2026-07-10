@@ -5,7 +5,8 @@ approval_policy = "on-request"
 sandbox_mode = "workspace-write"
 default_permissions = "standard"
 
-model_reasoning_effort = "high"
+model = "gpt-5.6-terra"
+model_reasoning_effort = "medium"
 model_verbosity = "medium"
 model_instructions_file = "instructions.md"
 
