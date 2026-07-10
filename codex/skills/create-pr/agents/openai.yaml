@@ -1,0 +1,4 @@
+interface:
+  display_name: "Create PR"
+  short_description: "Push and open a Draft PR using repository rules."
+  default_prompt: "Push the current branch and open a Draft pull request using the repository rules."

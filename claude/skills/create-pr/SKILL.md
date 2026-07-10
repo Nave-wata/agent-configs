@@ -1,19 +1,18 @@
 ---
-name: commit-pr
-description: コミット・プッシュ・PR作成・Issueラベル更新を一括実行。push と PR 作成という公開操作を伴うため、ユーザーが明示的に呼び出した時のみ実行する
+name: create-pr
+description: コミット済みの変更を push し、テスト実行後に GitHub PR を Draft で作成。Issueラベル更新・ナレッジコメント投稿まで一括実行。push と PR 作成という公開操作を伴うため、ユーザーが明示的に呼び出した時のみ実行する
 disable-model-invocation: true
-allowed-tools: Bash(git:*), Bash(gh:*), Bash(curl:*), AskUserQuestion
+allowed-tools: Bash(git push:*), Bash(git status:*), Bash(git diff:*), Bash(git branch:*), Bash(git log:*), Bash(gh:*), Bash(curl:*), AskUserQuestion
 argument-hint: <issue番号 or issue URL>
 ---
 
-# コミット + PR作成
+# PR作成
 
 ## コンテキスト
 
 - 現在のブランチ: !`git branch --show-current`
 - リポジトリ: !`gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || git remote get-url origin 2>/dev/null`
 - git status: !`git status`
-- 変更差分: !`git diff HEAD`
 - 最近のコミット: !`git log --oneline -10`
 
 ## リポジトリの特定（汎用化）
@@ -28,22 +27,15 @@ REPO="$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null)"
 
 以降の手順では `{OWNER}/{REPO}` をこの `$REPO` に読み替える。
 
+このスキルはコミット済みの変更を前提とする（コミットは `commit` スキルが担当）。
+
 ## 実行手順
 
-### 1. ブランチ確認
-
-現在のブランチが main（または既定ブランチ）の場合、自動的に作業ブランチを作成して切り替える:
-
-1. Issue番号を確認する（ステップ2を先行実施。未確定ならユーザーに確認）
-2. `git branch -a` で既存ブランチの命名パターンを確認し、リポジトリの慣習に従ったブランチ名を決定する
-3. `git switch -c {ブランチ名}` で新しいブランチを作成・切り替える
-4. ユーザーにブランチ作成を報告し、続行する
-
-### 2. Issue番号の確認
+### 1. Issue番号の確認
 
 $ARGUMENTS から issue番号を抽出する（URLからの抽出も可）。引数がない場合や issue番号として解釈できない場合は、ユーザーに issue番号を確認すること。推測で進めないこと。
 
-### 3. Issue情報の取得
+### 2. Issue情報の取得
 
 Issue番号からGitHub APIで情報を取得する（`gh` コマンドがTLSエラーで失敗する場合は `curl -sk` を使用）:
 
@@ -56,40 +48,7 @@ curl -sk -H "Authorization: token $(gh auth token 2>/dev/null)" \
 - アサイン（assignees）→ PRのアサインに使用
 - ラベル → PRのラベルに使用（プロジェクトにバージョンラベル運用がある場合）
 
-### 4. コミットの作成
-
-以下のフォーマットでコミットを作成する:
-
-```
-#issue番号 [変更タイプ]: コミットメッセージ
-
-変更の経緯
-変更の内容
-
-Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
-```
-
-#### 変更タイプ
-
-| タイプ | 用途 |
-|--------|------|
-| feat | 機能追加 |
-| update | 既存機能の変更や強化 |
-| fix | バグの修正 |
-| refactor | 動作の変更なくリファクタリングのみ |
-| test | テストコードの追加・修正のみ |
-| chore | ライブラリの追加やgithub actionsの設定など |
-
-#### コミットルール
-
-- **サマリ行（1行目）には「コードがどう変わったか」を書く**。「レビュー対応」「指摘修正」「修正」のような、何が変わったか分からないメッセージは禁止。レビュー起因の修正でも `[fix]: null 参照でクラッシュする問題を修正`、`[refactor]: 重複バリデーションを共通関数に集約` のように変更内容で表現する
-  - 「レビューで指摘されたため」といった**経緯を残したい場合は本文の「変更の経緯」行や Issue のナレッジコメントに書く**（サマリ行には書かない）
-- 詳細説明（変更の経緯/変更の内容）は簡単な変更の場合は省略可能
-- HEREDOCを使用してコミットメッセージを渡すこと
-- ファイルのステージは `git add -A` ではなく個別にファイル名を指定する
-- .env やクレデンシャルファイルなど機密情報を含むファイルはコミットしないこと
-
-### 5. プッシュ
+### 3. プッシュ
 
 リモートにプッシュする。上流ブランチが未設定の場合は `-u` フラグを付与する。
 
@@ -97,19 +56,22 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
 git push -u origin $(git branch --show-current)
 ```
 
-### 6. テスト実行
+### 4. テスト実行
 
 プロジェクトのテストコマンドを実行し、結果を記録する。テストコマンドはプロジェクトごとに異なるため、リポジトリの構成から判断する（例: `npm test`、`composer test`、`docker compose exec <service> <test-runner>`、`make test` 等）。
 
 - 検出できない／実行環境が無い場合は、その旨を記録し、ユーザーに手動実行を促す
 - テスト対象が明確な場合は関連テストのみ実行してもよい
 
-### 7. PR作成
+### 5. PR作成
 
-以下のフォーマットでPRを作成する。PR本文は日本語。
+**デフォルトで Draft PR として作成する**（`--draft` を付与）。ユーザーから明示的に Ready（非Draft）での作成を指示された場合のみ `--draft` を外す。
+
+PR本文は日本語。
 
 ```bash
 gh pr create \
+  --draft \
   --title "PRタイトル" \
   --body 'PR本文' \
   --assignee "issueのアサインと同じユーザー" \
@@ -161,7 +123,7 @@ gh pr create \
 - **テスト方法 > エラーパターン**: 検証中に発見した不具合がある場合のみ記載。基本は「なし」
 - **その他**: レビュワーへの補足があれば記載。なければ「なし」
 
-### 8. Issueへのナレッジ投稿（統合コメント方式）
+### 6. Issueへのナレッジ投稿（統合コメント方式）
 
 PR作成後、対応するIssueにナレッジを投稿する。
 **同一Issueに対するナレッジは1つのコメントに統合**する。PR URLも記載する。
@@ -170,7 +132,7 @@ PR作成後、対応するIssueにナレッジを投稿する。
 - **ナレッジ（メイン）**: Issue全体の変更を統合的に記述。コミットのたびに最新状態へ**上書き更新**する
 - **開発ログ（付録）**: コミットごとの履歴表。`<details>` で折りたたみ、コミットのたびに行を**追記**する
 
-#### 8-1. 既存コメントを検索
+#### 6-1. 既存コメントを検索
 
 Issueのコメント一覧から `<!-- claude-dev-log -->` マーカーを含むコメントを検索する。
 
@@ -180,7 +142,7 @@ curl -sk -H "Authorization: token $(gh auth token 2>/dev/null)" \
   | jq '[.[] | select(.body | contains("<!-- claude-dev-log -->"))] | .[0] | {id, body}'
 ```
 
-#### 8-2. ナレッジの作成・更新
+#### 6-2. ナレッジの作成・更新
 
 ナレッジセクションは `git diff {ベースブランチ}...HEAD`（ベースブランチからの全体差分）を元に、統合的な内容を記述する。
 
@@ -236,7 +198,7 @@ EOF
 - 簡単な変更でも理由・背景は省略しない（後から見た人が判断に迷わないようにするため）
 - コミットメッセージの詳細説明と重複してもよい（Issueだけで完結できることを優先）
 
-### 9. Issueラベル更新（プロジェクトにステータスラベル運用がある場合）
+### 7. Issueラベル更新（プロジェクトにステータスラベル運用がある場合）
 
 プロジェクトが Issue のステータスラベル（例: `進行中` → `レビュー中`）を運用している場合は更新する。運用が無いリポジトリではこのステップをスキップする。
 
@@ -252,10 +214,10 @@ curl -sk -X POST -H "Authorization: token $(gh auth token 2>/dev/null)" \
   -d '{"labels":["{REVIEW_LABEL}"]}'
 ```
 
-### 10. 結果報告
+### 8. 結果報告
 
 以下を報告する:
-- コミット内容
+- プッシュ結果
 - テスト結果
-- PR URL
+- PR URL（Draft か Ready かを明記）
 - Issueラベルの更新結果（実施した場合）

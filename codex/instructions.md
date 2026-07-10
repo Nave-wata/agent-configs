@@ -8,4 +8,4 @@
 - Do not read, write, or stage `.env`, key, or credential files.
 - Confirm ambiguous requirements before implementation when multiple behavior interpretations are plausible.
 - Use deeper review only when the change is broad, security-sensitive, performance-sensitive, or crosses authentication, authorization, SQL, multilingual, or external API boundaries.
-- Claude slash-command style workflows are available as Codex repo skills under `.codex/skills`. Use `$commit`, `$commit-pr`, `$review`, and `$release` when those workflows are requested.
+- Claude slash-command style workflows are available as Codex repo skills under `.codex/skills`. Use `$commit`, `$create-pr`, `$review`, and `$release` when those workflows are requested.

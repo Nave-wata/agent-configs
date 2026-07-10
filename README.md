@@ -68,13 +68,13 @@ agent-setup ~/work/my-project   # パス指定でも可
 ### Claude Code（`claude/`）
 
 - `CLAUDE.md` … 共通方針（日本語応答、gh CLI ポリシー、TLS フォールバック等）。Codex / opencode もこれを参照する
-- `skills/` … `commit`・`commit-pr`・`release`・`review`・`review-fix-loop`・`review-iterate`
+- `skills/` … `commit`・`create-pr`・`release`・`review`・`review-fix-loop`・`review-iterate`
 - `statuslines/` … ステータスライン用スクリプト
 
 ### Codex（`codex/`）
 
 - `config.toml`・`instructions.md`・`rules/`・`hooks/`
-- `skills/` … `commit`・`commit-pr`・`review`・`release`（Codex 適応版。`$commit` のように起動）
+- `skills/` … `commit`・`create-pr`・`review`・`release`（Codex 適応版。`$commit` のように起動）
 
 ### opencode（`opencode/`）
 
@@ -87,7 +87,7 @@ agent-setup ~/work/my-project   # パス指定でも可
 | スキル | claude | codex | opencode |
 |--------|:------:|:-----:|:--------:|
 | commit | ✓ | ✓ | ✓（`.claude/skills` 互換読み） |
-| commit-pr | ✓ | ✓ | ✓（同上） |
+| create-pr | ✓ | ✓ | ✓（同上） |
 | release | ✓ | ✓ | ✓（同上） |
 | review | ✓ | ✓ | ✓（opencode 専用簡略版） |
 | review-fix-loop | ✓ | — | — |

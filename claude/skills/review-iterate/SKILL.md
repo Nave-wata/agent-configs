@@ -17,7 +17,7 @@ argument-hint: "[レビュー対象 (例: main...HEAD, HEAD~3, -- src/)]"
 - `git commit` / `git push` / `git tag` / `git stash`（破壊的操作）
 - `gh pr create` / `gh pr merge` / `gh pr review` / `gh issue` 系の **書き込み**操作
 - `gh` / `curl` でのラベル更新・コメント投稿・ステータス変更など**リモートを変更する一切の操作**
-- `/commit`・`/commit-pr`・`/release` 等のコミット/リリース系スキルの呼び出し
+- `/commit`・`/create-pr`・`/release` 等のコミット/リリース系スキルの呼び出し
 
 許可されるのは、レビューのための**読み取り**（`git diff`/`gh pr view` 等）と、**作業ツリー上のファイル編集**（Edit/Write）のみ。
 修正結果は未コミットの作業ツリー変更として残す。コミットが必要かどうかは、ループ完了後にユーザーが別途判断する（このスキルでは行わない）。

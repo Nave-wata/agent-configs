@@ -1,4 +1,0 @@
-interface:
-  display_name: "Create PR"
-  short_description: "Commit, push, and open a PR with repository rules."
-  default_prompt: "Commit, push, and open a pull request using the repository rules."

@@ -1,13 +1,14 @@
 ---
-name: commit-pr
-description: Commit, push a working branch, run project tests, create a GitHub pull request, post the Issue knowledge comment, and update Issue status labels when the project uses them. Use only when the user explicitly asks to push, create a PR, open a pull request, or run the full commit-and-PR workflow.
+name: create-pr
+description: Push a working branch, run project tests, create a GitHub pull request as Draft, post the Issue knowledge comment, and update Issue status labels when the project uses them. Use only when the user explicitly asks to push, create a PR, or open a pull request.
 ---
 
-# Commit + PR
+# Create PR
 
 ## Preconditions
 
 - This workflow performs public remote actions (push, PR creation). Proceed only when the user explicitly requested it.
+- Assumes the change is already committed (commit is handled by the `commit` skill). Run `$commit` first if it hasn't been.
 - Target the project's default base branch (e.g. `main`, following the repo's convention), never a branch the project forbids merging into directly.
 
 ## Repository (dynamic)
@@ -24,8 +25,7 @@ GitHub API URLs take the form `https://api.github.com/repos/${REPO}/...`.
 ## Workflow
 
 1. Confirm the Issue number from the prompt or URL. Ask if missing; do not guess.
-2. If on the base branch, inspect branch naming with `git branch -a` and create/switch to a working branch matching the repo's convention.
-3. Fetch Issue metadata with `gh` or the TLS fallback:
+2. Fetch Issue metadata with `gh` or the TLS fallback:
 
 ```sh
 curl -sk -H "Authorization: token $(gh auth token 2>/dev/null)" \
@@ -34,33 +34,19 @@ curl -sk -H "Authorization: token $(gh auth token 2>/dev/null)" \
 
 Use Issue assignees for the PR assignee. If the project runs a version-label scheme (e.g. MAJOR/MINOR/PATCH), carry the relevant label onto the PR.
 
-4. Commit using this format (stage files explicitly by path; never `git add -A` or stage secrets):
-
-```text
-#<issue番号> [<変更タイプ>]: <1行サマリ>
-
-<変更の経緯>
-<変更の内容>
-
-Co-Authored-By: Codex <noreply@openai.com>
-```
-
-Change types: `feat`, `update`, `fix`, `refactor`, `test`, `chore`. Use a heredoc-style message.
-
-The summary line (line 1) must state *how the code changed*. Never use vague messages like `レビュー対応`, `指摘修正`, or `修正` that don't say what changed — even for review-driven fixes, express the actual change (e.g. `[fix]: null 参照でクラッシュする問題を修正`, `[refactor]: 重複バリデーションを共通関数に集約`). If you want to record *why* the change was made (e.g. "raised in review"), put that in the `変更の経緯` body line or the Issue knowledge comment, not the summary line.
-
-5. Push only the current working branch:
+3. Push only the current working branch:
 
 ```sh
 git push -u origin "$(git branch --show-current)"
 ```
 
-6. Run the project's test command and record the result. Detect it from the repo (e.g. `npm test`, `make test`, a containerized runner). If no runner is detectable or the environment cannot run it, record that and ask the user to run it manually. Running only the relevant tests is fine when the target is clear.
+4. Run the project's test command and record the result. Detect it from the repo (e.g. `npm test`, `make test`, a containerized runner). If no runner is detectable or the environment cannot run it, record that and ask the user to run it manually. Running only the relevant tests is fine when the target is clear.
 
-7. Create the PR (body in Japanese). Use `.github/PULL_REQUEST_TEMPLATE.md` when present. TLS fallback: `curl -sk` against the GitHub API.
+5. Create the PR as **Draft by default** (`--draft`). Only omit `--draft` when the user explicitly asked for a Ready (non-draft) PR. Body in Japanese. Use `.github/PULL_REQUEST_TEMPLATE.md` when present. TLS fallback: `curl -sk` against the GitHub API.
 
 ```sh
 gh pr create \
+  --draft \
   --title "PRタイトル" \
   --body 'PR本文' \
   --assignee "<issue assignee>" \
@@ -134,4 +120,4 @@ curl -sk -X POST -H "Authorization: token $(gh auth token 2>/dev/null)" \
 
 ## Result
 
-Report the commit hash, push result, test result, PR URL, the Issue comment update, and the Issue-label outcome (if performed).
+Report the push result, test result, PR URL (state whether Draft or Ready), the Issue comment update, and the Issue-label outcome (if performed).
