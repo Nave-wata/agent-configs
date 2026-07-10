@@ -18,3 +18,10 @@ __pycache__/
 # このリポでは配布物なので追跡対象に戻す（打ち消し）
 !**/CLAUDE.md
 !**/opencode.json
+
+# .claude/.codex/.opencode はこのリポジトリ自身に対する動作確認用インスタンスであり、
+# 配布物（claude/, codex/, opencode/）とは別物なので追跡しない
+/.claude/
+/.codex/
+/.opencode/
+/.agent-configs-manifest
