@@ -80,6 +80,7 @@ agent-setup ~/work/my-project   # パス指定でも可
 ### opencode（`opencode/`）
 
 - `opencode.json` … `instructions` で `.claude/CLAUDE.md` を参照し、共通方針を共有
+- `agents/` … opencode 専用サブエージェント（`code-reviewer`・`codebase-onboarding-engineer`・`software-architect`・`minimal-change-engineer`・`git-workflow-master`・`sre`）。[msitarzewski/agency-agents](https://github.com/msitarzewski/agency-agents)（MIT License）から移植。詳細は [`opencode/README.md`](opencode/README.md)
 - `skills/review/` … opencode 単体で動くレビュー
 - commit 系スキルは opencode が `.claude/skills/` を**互換スキルとして直接読み込む**ため、opencode 用に重複コピーしていない
 
