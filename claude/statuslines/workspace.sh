@@ -4,6 +4,7 @@ input=$(cat)
 
 GREEN='\x1b[32m'
 RED='\x1b[31m'
+YELLOW='\x1b[33m'
 RESET='\x1b[0m'
 
 DIR=$(echo "$input" | jq -r '.workspace.current_dir // .cwd // empty')
@@ -30,7 +31,7 @@ if git -C "$DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     [ -z "$BRANCH" ] && BRANCH="$(git -C "$DIR" rev-parse --short HEAD 2>/dev/null)"
 
     DIRTY=""
-    [ -n "$(git -C "$DIR" status --porcelain 2>/dev/null)" ] && DIRTY="*"
+    [ -n "$(git -C "$DIR" status --porcelain 2>/dev/null)" ] && DIRTY="${YELLOW}*${RESET}"
 
     # sbx の worktree (<repo>/.sbx/配下) で作業中かどうかを判定する
     WT_TAG=""
@@ -62,7 +63,7 @@ if git -C "$DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     AHEAD_TEXT=""
     (( AHEAD > 0 )) && AHEAD_TEXT=" (${AHEAD} commits ahead)"
 
-    echo -e "📁 ${DISPLAY_DIR} | ⎇  ${WT_TAG}${BRANCH}${DIRTY} ${GREEN}+${ADDED}${RESET} ${RED}-${DELETED}${RESET} ${FILE_COUNT} files${AHEAD_TEXT}"
+    echo -e "⎇  ${WT_TAG}${BRANCH}${DIRTY} ${GREEN}+${ADDED}${RESET} ${RED}-${DELETED}${RESET} ${FILE_COUNT} files${AHEAD_TEXT} | 📁 ${DISPLAY_DIR}"
 else
     echo "📁 ${DISPLAY_DIR}"
 fi
