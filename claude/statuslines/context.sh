@@ -18,24 +18,23 @@ if [ "$USAGE" != "null" ] && [ "$CONTEXT_SIZE" != "null" ] && [ "$CONTEXT_SIZE" 
     (( PERCENT > 100 )) && PERCENT=100
     (( PERCENT < 0 )) && PERCENT=0
 
-    # 点字1マスは8ドット。10マス x 8ドット = 80段階 (1.25%刻み) で使用率を表現する。
-    BAR=$(python3 -c '
-p = '"$PERCENT"'
-cells = 10
-# ドット点灯順: 左列を下から上、続けて右列を下から上 (U+2800 基準のビット値)。
-order = (0x40, 0x04, 0x02, 0x01, 0x80, 0x20, 0x10, 0x08)
-lit = round(p / 100 * cells * 8)
-out = []
-for i in range(cells):
-    n = min(8, max(0, lit - 8 * i))
-    bits = 0
-    for k in range(n):
-        bits |= order[k]
-    out.append(chr(0x2800 + bits))
-print("".join(out))
+    TOKENS_FMT=$(python3 -c '
+current = '"$CURRENT"'
+size = '"$CONTEXT_SIZE"'
+
+def fmt_tokens(n):
+    if n >= 1_000_000:
+        v = n / 1_000_000
+        s = f"{v:.0f}" if v == int(v) else f"{v:.1f}"
+        return s + "M"
+    if n >= 1_000:
+        return f"{round(n / 1000)}K"
+    return str(n)
+
+print(f"{fmt_tokens(current)} / {fmt_tokens(size)}")
 ')
 
-    # 色の選択
+    # 色の選択(パーセント表示にのみ適用する)
     if (( PERCENT >= 90 )); then
         COLOR=$RED
     elif (( PERCENT >= 70 )); then
@@ -44,7 +43,7 @@ print("".join(out))
         COLOR=$GREEN
     fi
 
-    echo -e "🪙 ${COLOR}${BAR} ${PERCENT}%${RESET}"
+    echo -e "🪙 ${TOKENS_FMT} (${COLOR}${PERCENT}%${RESET})"
 else
-    echo -e "🪙 ${GREEN}⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀ --%${RESET}"
+    echo -e "🪙 -- / -- (${GREEN}--%${RESET})"
 fi
