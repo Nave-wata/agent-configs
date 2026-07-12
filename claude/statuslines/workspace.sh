@@ -37,7 +37,9 @@ if git -C "$DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     WT_TAG=""
     [[ "$DIR" == *"/.sbx/"* ]] && WT_TAG="[wt] "
 
-    # 未コミットの変更行数・ファイル数 (staged + unstaged の合計、ファイルは重複除去)
+    # 未コミットの変更行数・ファイル数 (staged + unstaged + untracked の合計、ファイルは重複除去)
+    # git diff / diff --cached は tracked ファイルの変更しか見えないため、
+    # 新規作成した未追跡ファイルは別途 ls-files --others で拾って加算する。
     NUMSTAT=$( { git -C "$DIR" diff --numstat 2>/dev/null; git -C "$DIR" diff --cached --numstat 2>/dev/null; } )
     ADDED=0
     DELETED=0
@@ -48,6 +50,15 @@ if git -C "$DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
         [[ "$d" =~ ^[0-9]+$ ]] && DELETED=$((DELETED + d))
         SEEN_FILES["$f"]=1
     done <<< "$NUMSTAT"
+
+    UNTRACKED=$(git -C "$DIR" ls-files --others --exclude-standard 2>/dev/null)
+    while IFS= read -r f; do
+        [ -z "$f" ] && continue
+        [ -n "${SEEN_FILES[$f]:-}" ] && continue
+        LINES=$(wc -l < "$DIR/$f" 2>/dev/null | tr -d ' ')
+        [[ "$LINES" =~ ^[0-9]+$ ]] && ADDED=$((ADDED + LINES))
+        SEEN_FILES["$f"]=1
+    done <<< "$UNTRACKED"
     FILE_COUNT=${#SEEN_FILES[@]}
 
     # リモートのデフォルトブランチを検出 (取得できなければ main にフォールバック)
