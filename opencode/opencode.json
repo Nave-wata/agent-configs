@@ -5,7 +5,6 @@
   ],
   "share": "disabled",
   "autoupdate": false,
-  "small_model": "ollama/ornith",
   "permission": {
     "*": "allow",
     "bash": {
@@ -41,9 +40,10 @@
       "*.pem": "deny"
     }
   },
-  "model": "ollama/ornith",
+  "model": "llama.cpp/Ornith-1.0-35B",
+  "small_model": "llama.cpp/Ornith-1.0-35B",
   "provider": {
-    "ollama": {
+    "llama.cpp": {
       "npm": "@ai-sdk/openai-compatible",
       "name": "llama.cpp (local)",
       "options": {
@@ -51,11 +51,11 @@
         "apiKey": "llama"
       },
       "models": {
-        "ornith": {
+        "Ornith-1.0-35B": {
           "name": "Ornith 1.0 35B",
           "limit": {
-            "context": 262144,
-            "output": 32768
+            "context": 131072,
+            "output": 16384
           },
           "reasoning": true,
           "tool_call": true
