@@ -3,8 +3,10 @@
 # agent-setup — agent-configs のエージェント設定を対象プロジェクトへ展開する。
 #
 #   使い方:
-#     agent-setup            # カレントディレクトリへ展開
-#     agent-setup <path>     # 指定ディレクトリへ展開
+#     agent-setup                      # 全ツールをカレントディレクトリへ展開
+#     agent-setup <path>               # 指定ディレクトリへ展開
+#     agent-setup --claude             # claude のみ展開
+#     agent-setup --claude --codex <path>  # 複数指定 + 展開先指定
 #
 #   方式:
 #     リポジトリ内の各ソースディレクトリ（claude/ codex/ opencode/）を、
@@ -12,10 +14,19 @@
 #     スクリプト自身の位置からリポルートを解決するため、リポをどこに
 #     置いても動作する（ディレクトリ非依存）。
 #
+#   ツール選択:
+#     --<ツール名> フラグで展開対象を絞れる。フラグ名は SOURCES から動的に
+#     導出するため、SOURCES にツールを足せばフラグも自動で増える。
+#     フラグ無指定なら全ツールが対象（従来どおり）。
+#     選ばなかったツールの既存展開ファイルには一切触らない。
+#
 #   更新（マニフェスト方式）:
 #     展開したファイル一覧を対象プロジェクトの .agent-configs-manifest に記録する。
 #     再実行時は「前回配ったが今回ソースに無いファイル」だけを削除し、
 #     マニフェストに無いファイル（プロジェクト固有のファイル）は一切触らない。
+#     ツールを絞った場合、削除判定は選択ツール配下の行だけに限定し、
+#     非選択ツールのマニフェスト行はそのまま持ち越す（次回そのツールを
+#     選んだときに正しく削除判定できるようにするため）。
 #
 #   出力:
 #     再実行のたびに何が変わったかを可視化する。ファイルごとに
@@ -39,8 +50,50 @@ done
 SCRIPT_DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+# 配布しうるソースディレクトリ（トップレベル名）。それぞれ .<name> へ展開する。
+# ここが「このリポが管理しうる全ツール」の定義であり、--<name> フラグの語彙でもある。
+SOURCES="claude codex opencode"
+
+# --- 引数パース（--<ツール名> フラグ / 展開先パス） ---
+# SELECTED … 今回の展開対象。フラグ未指定なら SOURCES 全部にフォールバックする。
+SELECTED=""
+TARGET_ARG=""
+for arg in "$@"; do
+  case "$arg" in
+    --*)
+      name="${arg#--}"
+      matched=0
+      for src in $SOURCES; do
+        if [ "$name" = "$src" ]; then matched=1; break; fi
+      done
+      if [ "$matched" -eq 0 ]; then
+        echo "エラー: 不明なオプション: $arg" >&2
+        echo "       指定できるのは以下のいずれかです:" >&2
+        for src in $SOURCES; do echo "         --$src" >&2; done
+        exit 1
+      fi
+      # 同じフラグを重ねて渡されても SELECTED が重複しないようにする
+      case " $SELECTED " in *" $name "*) ;; *) SELECTED="$SELECTED $name" ;; esac
+      ;;
+    *)
+      if [ -n "$TARGET_ARG" ]; then
+        echo "エラー: 展開先を複数指定できません: $TARGET_ARG, $arg" >&2
+        exit 1
+      fi
+      TARGET_ARG="$arg"
+      ;;
+  esac
+done
+
+# フラグが1つも無ければ全ツール展開（従来どおりの挙動）
+if [ -z "$SELECTED" ]; then
+  SELECTED="$SOURCES"
+else
+  SELECTED="${SELECTED# }"  # 組み立てで付いた先頭スペースを落とす
+fi
+
 # --- 展開先（引数 or カレント） ---
-TARGET_ARG="${1:-$PWD}"
+TARGET_ARG="${TARGET_ARG:-$PWD}"
 if [ ! -d "$TARGET_ARG" ]; then
   echo "エラー: 展開先ディレクトリが存在しません: $TARGET_ARG" >&2
   exit 1
@@ -48,9 +101,6 @@ fi
 TARGET="$(cd "$TARGET_ARG" && pwd)"
 
 MANIFEST="$TARGET/.agent-configs-manifest"
-
-# 配布するソースディレクトリ（トップレベル名）。それぞれ .<name> へ展開する。
-SOURCES="claude codex opencode"
 
 # 配布から除外するファイル名（basename 一致）。
 #   settings.json … プロジェクトごとに管理される（プロジェクトの git に入る）ため配布しない
@@ -69,7 +119,7 @@ fi
 # 配布元が1つも見つからない場合は無言終了せず明示的に失敗する
 # （symlink 解決ミスなどでリポルートを取り違えていないかの早期検知）。
 _found_src=0
-for src in $SOURCES; do
+for src in $SELECTED; do
   [ -d "$REPO_ROOT/$src" ] && _found_src=1
 done
 if [ "$_found_src" -eq 0 ]; then
@@ -85,7 +135,7 @@ fi
 new_files=""
 added_files=""
 updated_files=""
-for src in $SOURCES; do
+for src in $SELECTED; do
   src_dir="$REPO_ROOT/$src"
   [ -d "$src_dir" ] || continue
   dest_dir="$TARGET/.$src"
@@ -110,11 +160,26 @@ for src in $SOURCES; do
 done
 
 # --- 2. 旧マニフェストにあって今回配らなかったファイルを削除（削除分を記録） ---
-#        （マニフェストに無い＝プロジェクト固有のファイルは対象外） ---
+#        （マニフェストに無い＝プロジェクト固有のファイルは対象外）
+#        判定は選択ツール配下の行だけに限定する。非選択ツールの行は今回配っていない
+#        だけで消えたわけではないので、削除せず kept_files としてマニフェストへ持ち越す。
 deleted_files=""
+kept_files=""
 if [ -f "$MANIFEST" ]; then
   while IFS= read -r old; do
     [ -z "$old" ] && continue
+    # 選択ツール配下の行か判定（.claude/... の先頭要素を SELECTED と突き合わせる）
+    old_tool="${old%%/*}"      # ".claude" など
+    old_tool="${old_tool#.}"   # "claude"
+    is_selected=0
+    for src in $SELECTED; do
+      if [ "$old_tool" = "$src" ]; then is_selected=1; break; fi
+    done
+    if [ "$is_selected" -eq 0 ]; then
+      kept_files="$kept_files$old
+"
+      continue
+    fi
     # 今回の配布対象に含まれているか確認
     if ! printf '%s' "$new_files" | grep -qxF "$old"; then
       rm -f "$TARGET/$old"
@@ -125,10 +190,11 @@ if [ -f "$MANIFEST" ]; then
 fi
 
 # --- 3. 新マニフェストを書き出し（ソート・重複排除） ---
-printf '%s' "$new_files" | grep -v '^$' | LC_ALL=C sort -u > "$MANIFEST" || true
+#        今回配ったファイル + 非選択ツールの持ち越し分をマージする。
+printf '%s%s' "$new_files" "$kept_files" | grep -v '^$' | LC_ALL=C sort -u > "$MANIFEST" || true
 
-# --- 4. 配布先の空ディレクトリを掃除 ---
-for src in $SOURCES; do
+# --- 4. 配布先の空ディレクトリを掃除（選択ツールのみ） ---
+for src in $SELECTED; do
   d="$TARGET/.$src"
   [ -d "$d" ] && find "$d" -type d -empty -delete 2>/dev/null || true
 done
@@ -140,11 +206,16 @@ count="$(grep -c . "$MANIFEST" 2>/dev/null || echo 0)"
 _lines() { printf '%s' "$1" | grep -v '^$'; }              # 空行を除いた行を出す
 _cnt()   { _lines "$1" | grep -c "^\\.$2/" || true; }      # $2=ツール名 の件数
 
-printf '\n%sagent-setup%s → %s\n\n' "$C_BOLD" "$C_RST" "$TARGET"
+# ツールを絞ったときだけ対象を明示する（全展開時は従来どおりの見た目を保つ）
+scope=""
+if [ "$SELECTED" != "$SOURCES" ]; then
+  scope=" ($(printf '%s' "$SELECTED" | sed 's/ /, /g'))"
+fi
+printf '\n%sagent-setup%s%s%s%s → %s\n\n' "$C_BOLD" "$C_RST" "$C_DIM" "$scope" "$C_RST" "$TARGET"
 
 # ツール別サマリー（変更のあったツールのみ）
 any_change=0
-for src in $SOURCES; do
+for src in $SELECTED; do
   a="$(_cnt "$added_files" "$src")"
   u="$(_cnt "$updated_files" "$src")"
   d="$(_cnt "$deleted_files" "$src")"
