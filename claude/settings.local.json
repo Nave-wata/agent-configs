@@ -24,10 +24,10 @@
       "Read(id_ed25519*)",
       "Read(*.key)",
       "Read(*.pem)",
-      "Write(.env*)",
-      "Write(id_rsa*)",
-      "Write(*.key)",
-      "Write(*.pem)"
+      "Edit(.env*)",
+      "Edit(id_rsa*)",
+      "Edit(*.key)",
+      "Edit(*.pem)"
     ],
     "defaultMode": "auto"
   },
