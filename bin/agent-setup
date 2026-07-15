@@ -7,6 +7,7 @@
 #     agent-setup <path>               # 指定ディレクトリへ展開
 #     agent-setup --claude             # claude のみ展開
 #     agent-setup --claude --codex <path>  # 複数指定 + 展開先指定
+#     agent-setup -y                   # 確認プロンプトを出さずに展開
 #
 #   方式:
 #     リポジトリ内の各ソースディレクトリ（claude/ codex/ opencode/）を、
@@ -35,6 +36,18 @@
 #     色は stdout が端末のときだけ付与し、パイプ/リダイレクト時や NO_COLOR
 #     設定時は自動で無色にフォールバックする。
 #
+#   確認:
+#     選択ツールの .<name> が展開先に1つでも既にある場合、上記の差分を見せた
+#     うえで実行全体につき1回だけ y/N を尋ねる。すべて新規なら無言で展開する
+#     （壊す既存物が無いため）。既存でも差分がゼロなら尋ねる意味が無いので出さない。
+#     -y / --yes で確認を省略できる。既存があるのに stdin が端末でない
+#     （CI・パイプ経由）ときは確認しようがないため、展開せずエラー終了する。
+#
+#   処理順:
+#     確認を挟むため「判定」と「適用」を分離している。まず走査だけを行って
+#     追加/更新/削除を算出し（この時点でファイルは一切書き換えない）、差分表示と
+#     確認を経てから、コピー・削除・マニフェスト更新をまとめて適用する。
+#
 set -euo pipefail
 
 # --- リポルート（スクリプト自身の位置基準。symlink 経由で呼ばれても実体を解決） ---
@@ -54,12 +67,17 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 # ここが「このリポが管理しうる全ツール」の定義であり、--<name> フラグの語彙でもある。
 SOURCES="claude codex opencode"
 
-# --- 引数パース（--<ツール名> フラグ / 展開先パス） ---
+# --- 引数パース（--<ツール名> フラグ / -y / 展開先パス） ---
 # SELECTED … 今回の展開対象。フラグ未指定なら SOURCES 全部にフォールバックする。
+# YES      … 1 なら確認プロンプトを省略する。
 SELECTED=""
 TARGET_ARG=""
+YES=0
 for arg in "$@"; do
   case "$arg" in
+    -y|--yes)
+      YES=1
+      ;;
     --*)
       name="${arg#--}"
       matched=0
@@ -70,6 +88,7 @@ for arg in "$@"; do
         echo "エラー: 不明なオプション: $arg" >&2
         echo "       指定できるのは以下のいずれかです:" >&2
         for src in $SOURCES; do echo "         --$src" >&2; done
+        echo "         -y, --yes" >&2
         exit 1
       fi
       # 同じフラグを重ねて渡されても SELECTED が重複しないようにする
@@ -128,23 +147,24 @@ if [ "$_found_src" -eq 0 ]; then
   exit 1
 fi
 
-# --- 1. 今回配布するファイルをコピーしつつ、追加/更新を分類する ---
-#        added_files   … 展開先に無かった（新規）ファイル
-#        updated_files … 既存だが内容が変わったファイル
+# --- 1. 走査：今回配るファイルを洗い出し、追加/更新を分類する（まだ書き換えない） ---
+#        added_files   … 展開先に無い（新規）ファイル
+#        updated_files … 既存だが内容が変わるファイル
 #        （内容が同一のものはどちらにも記録しない＝出力に出さない）
+#        copy_plan     … 確認後に実行するコピーの計画（「コピー元<TAB>コピー先」）
 new_files=""
 added_files=""
 updated_files=""
+copy_plan=""
 for src in $SELECTED; do
   src_dir="$REPO_ROOT/$src"
   [ -d "$src_dir" ] || continue
-  dest_dir="$TARGET/.$src"
   while IFS= read -r f; do
     base="$(basename "$f")"
     case " $EXCLUDE_BASENAMES " in *" $base "*) continue ;; esac  # 除外対象はスキップ
     rel="${f#"$src_dir"/}"            # ソース内の相対パス
     dest_rel=".$src/$rel"            # 展開先相対パス（.claude/... など）
-    dest_path="$dest_dir/$rel"
+    dest_path="$TARGET/$dest_rel"
     if [ ! -e "$dest_path" ]; then
       added_files="$added_files$dest_rel
 "
@@ -152,14 +172,14 @@ for src in $SELECTED; do
       updated_files="$updated_files$dest_rel
 "
     fi
-    mkdir -p "$dest_dir/$(dirname "$rel")"
-    cp "$f" "$dest_path"
+    copy_plan="$copy_plan$f	$dest_path
+"
     new_files="$new_files$dest_rel
 "
   done < <(find "$src_dir" -type f)
 done
 
-# --- 2. 旧マニフェストにあって今回配らなかったファイルを削除（削除分を記録） ---
+# --- 2. 旧マニフェストと突き合わせ、削除対象を洗い出す（まだ消さない） ---
 #        （マニフェストに無い＝プロジェクト固有のファイルは対象外）
 #        判定は選択ツール配下の行だけに限定する。非選択ツールの行は今回配っていない
 #        だけで消えたわけではないので、削除せず kept_files としてマニフェストへ持ち越す。
@@ -182,25 +202,13 @@ if [ -f "$MANIFEST" ]; then
     fi
     # 今回の配布対象に含まれているか確認
     if ! printf '%s' "$new_files" | grep -qxF "$old"; then
-      rm -f "$TARGET/$old"
       deleted_files="$deleted_files$old
 "
     fi
   done < "$MANIFEST"
 fi
 
-# --- 3. 新マニフェストを書き出し（ソート・重複排除） ---
-#        今回配ったファイル + 非選択ツールの持ち越し分をマージする。
-printf '%s%s' "$new_files" "$kept_files" | grep -v '^$' | LC_ALL=C sort -u > "$MANIFEST" || true
-
-# --- 4. 配布先の空ディレクトリを掃除（選択ツールのみ） ---
-for src in $SELECTED; do
-  d="$TARGET/.$src"
-  [ -d "$d" ] && find "$d" -type d -empty -delete 2>/dev/null || true
-done
-
-# --- 5. サマリー出力 ---
-count="$(grep -c . "$MANIFEST" 2>/dev/null || echo 0)"
+# --- 3. サマリー表示（適用前。ここで見せた内容がそのまま確認の対象になる） ---
 
 # リスト整形/集計ヘルパ
 _lines() { printf '%s' "$1" | grep -v '^$'; }              # 空行を除いた行を出す
@@ -237,6 +245,47 @@ if [ "$any_change" -eq 1 ]; then
   _lines "$deleted_files" | LC_ALL=C sort | while IFS= read -r p; do printf '  %s-%s %s\n' "$C_DEL" "$C_RST" "$p"; done || true
 fi
 
+# --- 4. 確認 ---
+#        既存の .<tool> が1つでもあり、かつ実際に変更があるときだけ尋ねる。
+#        全ツール新規なら壊す既存物が無いので無言、変更ゼロなら尋ねる対象が無い。
+has_existing=0
+for src in $SELECTED; do
+  if [ -d "$TARGET/.$src" ]; then has_existing=1; fi
+done
+
+if [ "$YES" -eq 0 ] && [ "$has_existing" -eq 1 ] && [ "$any_change" -eq 1 ]; then
+  if [ ! -t 0 ]; then
+    printf '\n%sエラー: 既存の展開先があるため確認が必要ですが、標準入力が端末ではありません。%s\n' "$C_DEL" "$C_RST" >&2
+    echo "       確認を省略して展開するには -y を付けてください。" >&2
+    exit 1
+  fi
+  printf '\n以上の内容で展開します。よろしいですか? [y/N]: '
+  read -r reply || reply=""   # EOF でも set -e で落とさない
+  case "$reply" in
+    [yY]|[yY][eE][sS]) ;;
+    *) printf '中止しました。\n'; exit 1 ;;
+  esac
+fi
+
+# --- 5. 適用：コピー → 削除 → マニフェスト書き出し → 空ディレクトリ掃除 ---
+printf '%s' "$copy_plan" | while IFS=$'\t' read -r from to; do
+  [ -z "$from" ] && continue
+  mkdir -p "$(dirname "$to")"
+  cp "$from" "$to"
+done
+
+_lines "$deleted_files" | while IFS= read -r old; do rm -f "$TARGET/$old"; done || true
+
+# 今回配ったファイル + 非選択ツールの持ち越し分をマージする（ソート・重複排除）。
+printf '%s%s' "$new_files" "$kept_files" | grep -v '^$' | LC_ALL=C sort -u > "$MANIFEST" || true
+
+for src in $SELECTED; do
+  d="$TARGET/.$src"
+  [ -d "$d" ] && find "$d" -type d -empty -delete 2>/dev/null || true
+done
+
+# --- 6. 完了行 ---
+count="$(grep -c . "$MANIFEST" 2>/dev/null || echo 0)"
 printf '\n'
 if [ "$any_change" -eq 0 ]; then
   printf '%s✓%s %s files managed  %s·  変更なし%s\n' "$C_ADD" "$C_RST" "$count" "$C_DIM" "$C_RST"
