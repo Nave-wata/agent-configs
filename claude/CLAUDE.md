@@ -3,6 +3,16 @@
 - All communication with users must be conducted in Japanese.
 - Confirm any uncertainties with the user. Do not proceed with ambiguous information.
 
+## Subagent-First Workflow
+
+The main session focuses on orchestration: task breakdown, design decisions, and reviewing results. Delegate investigation and implementation to subagents (Agent tool) instead of working directly.
+
+Model selection for subagents:
+
+- Default: `opus` (also when unsure)
+- Simple tasks (search, mechanical edits, small fixes): `sonnet`
+- Heavy tasks (complex design, hard debugging, large refactors): `fable`
+
 ## Superpowers Document Output Location
 
 The output location for brainstorming designs and writing-plans implementation plans varies by project. **Always confirm the destination with the user** — possible options include GitHub Issue comments (`gh issue comment`), local files, or chat-only presentation.
