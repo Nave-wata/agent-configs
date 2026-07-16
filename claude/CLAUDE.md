@@ -5,7 +5,19 @@
 
 ## Subagent-First Workflow
 
-The main session focuses on orchestration: task breakdown, design decisions, and reviewing results. Delegate investigation and implementation to subagents (Agent tool) instead of working directly.
+The main session's job is orchestration: task breakdown, design decisions, and reviewing results. The goal is to keep the main context limited to information needed for decisions — delegate work whose intermediate output is large.
+
+Delegate to subagents (Agent tool):
+
+- Codebase exploration and investigation spanning multiple files
+- Implementation and debugging (trial-and-error generates noise)
+- Summarizing large diffs, logs, or long command outputs
+
+Do directly (delegation overhead exceeds savings):
+
+- Single gh/git commands, issue CRUD
+- Reading short outputs needed verbatim for decisions (e.g., review comments)
+- Any operation that completes in 1-2 tool calls with short output
 
 Model selection for subagents:
 
