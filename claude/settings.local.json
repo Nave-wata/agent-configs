@@ -9,22 +9,16 @@
   },
   "permissions": {
     "deny": [
-      "Bash(sudo:*)",
       "Bash(git config:*)",
-      "Bash(brew install:*)",
-      "Bash(chmod 777:*)",
       "Bash(:*aws:*)",
       "Bash(:*cdk deploy:*)",
       "Bash(:*cdk destroy:*)",
-      "Bash(claude:*)",
-      "Bash(codex:*)",
-      "Bash(gemini:*)",
-      "Read(id_rsa*)",
-      "Read(id_ed25519*)",
+      "Read(~/.codex/auth.json)",
+      "Read(id_*)",
       "Read(*.key)",
       "Read(*.pem)",
       "Edit(.env*)",
-      "Edit(id_rsa*)",
+      "Edit(id_*)",
       "Edit(*.key)",
       "Edit(*.pem)"
     ],
@@ -44,7 +38,8 @@
     "static-analysis@trailofbits": true,
     "supply-chain-risk-auditor@trailofbits": true,
     "pr-review-toolkit@claude-plugins-official": true,
-    "context7@claude-plugins-official": true
+    "context7@claude-plugins-official": true,
+    "codex@openai-codex": true
   },
   "extraKnownMarketplaces": {
     "trailofbits": {
