@@ -21,6 +21,6 @@
 
 opencode 上で `@code-reviewer` のように `@` プレフィックスで手動呼び出しできるほか、primary エージェントが各エージェントの `description` を見て自動的に委譲することもある。
 
-## TODO
+## 指示ドキュメント
 
-自動委譲の効き具合を様子見中。description だけでは自動委譲が弱いと感じたら、`opencode/AGENTS.md` を新設して `opencode.json` の `instructions` から参照させ、優先順位ルール等を明記する。
+opencode 専用の共通方針は `instructions.md`（展開後 `.opencode/instructions.md`、codex の `instructions.md` と同じ位置づけ）に記載し、`opencode.json` の `instructions` から参照している。description 頼みの自動委譲が弱いケースへの対策として、サブエージェントごとの使い分け・委譲判断基準もここに明記している。
