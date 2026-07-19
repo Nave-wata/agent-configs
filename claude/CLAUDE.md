@@ -25,6 +25,17 @@ Model selection for subagents:
 - Simple tasks (search, mechanical edits, small fixes): `sonnet`
 - Heavy tasks (complex design, hard debugging, large refactors): `fable`
 
+## Codex Plugin Usage
+
+Codex (via the codex plugin) is an advisor providing an independent, cross-vendor second opinion — not a parallel implementation workforce. Routine implementation and exploration stay with Claude subagents.
+
+- Second opinion / advisor: use `codex:rescue` when stuck after repeated failed attempts, when weighing design alternatives, or when an independent diagnosis adds value. Prefer read-only mode (diagnosis / investigation) — delegate write access only when explicitly intended.
+- Reviews: **always include a Codex review pass** whenever reviewing code (before commit, PR creation, or on request). Use `/codex:review` for ordinary code review; use `/codex:adversarial-review` with a focus prompt when design decisions or trade-offs need challenging.
+- Advisory checkpoints (recommended, not required): for non-trivial work, consult Codex once the approach/plan is settled — before implementation starts — via a read-only `codex:rescue`, asking it to challenge assumptions, risks, and simpler alternatives. Reuse the same thread (`--resume`) at later checkpoints (including the completion review) so the advisor retains context. Skip for trivial changes.
+- Codex advisory is distinct from Claude subagent delegation: subagents execute work within the current plan with full conversation context; Codex evaluates the plan itself from outside, without that context. Do not route ordinary subagent work to Codex, and treat its feedback as a second opinion to weigh — not as instructions to apply verbatim.
+- Prefer `--background` for large diffs or tasks; continue working and collect results with `/codex:status` / `/codex:result`.
+- Never enable the stop-review-gate (`/codex:setup --enable-review-gate`) — it can create costly Claude/Codex auto-review loops.
+
 ## Superpowers Document Output Location
 
 The output location for brainstorming designs and writing-plans implementation plans varies by project. **Always confirm the destination with the user** — possible options include GitHub Issue comments (`gh issue comment`), local files, or chat-only presentation.
