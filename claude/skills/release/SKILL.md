@@ -115,74 +115,25 @@ EOF
 
 ### 5. リリースノート生成
 
-PRラベルに応じたテンプレートでリリースノートを生成する。
+GitHub のリリースノート自動生成 API を使用する。手動でテンプレートから作文しないこと。
 
-#### リリースノートのルール
+```bash
+curl -sk -X POST \
+  -H "Authorization: token $(gh auth token 2>/dev/null)" \
+  -H "Content-Type: application/json" \
+  "https://api.github.com/repos/${REPO}/releases/generate-notes" \
+  -d '{
+    "tag_name": "vX.Y.Z",
+    "target_commitish": "main",
+    "previous_tag_name": "v前バージョン"
+  }' > /tmp/release-notes.json
 
-- 絵文字を使用しない
-- OSSスタイルで変更内容を分かりやすく記載する
-- **変更の粒度はPR単位**とする。個々のコミットメッセージをそのまま列挙しない
-  - ブランチ内での修正・リファクタ・レビュー対応等のコミットは、最終的なPRの成果物として統合して記述する
-  - コミット履歴はカテゴリ判定の参考にのみ使い、リリースノートの項目はPRのタイトル・本文・実際の変更内容から構成する
-- 該当する変更がないカテゴリは省略する（空のカテゴリ枠は不要）
-- 変更内容や経緯が不明瞭な場合はユーザーに確認を取る
-- Contributorsセクションを追加し、PRの作者をメンション形式（`@username`）で記載する
-- コード名やディレクティブ名はバッククォートで囲み、メンションとして認識されないようにする
-
-#### カテゴリ対応表
-
-PRタイトルのプレフィックスまたはコミットメッセージのプレフィックスからカテゴリを判定する:
-
-| コミットプレフィックス | カテゴリ名 |
-|----------------------|-----------|
-| feat | 新機能 |
-| update | 改善 |
-| fix | バグ修正 |
-| refactor | リファクタリング |
-| chore | メンテナンス |
-| - | 破壊的変更（MAJOR時） |
-
-#### PATCH リリース（簡潔版）
-
-```markdown
-## 変更内容
-
-### バグ修正
-- バグ修正の説明 (#PR番号)
-
-### 改善
-- 改善内容の説明 (#PR番号)
-
-## Contributors
-@username
-
-**Full Changelog**: https://github.com/{OWNER}/{REPO}/compare/v前バージョン...v現バージョン
+jq -r '.body' /tmp/release-notes.json
 ```
 
-#### MINOR / MAJOR リリース（詳細版）
-
-```markdown
-## 変更内容
-
-### 新機能
-- **機能名** (#PR番号)
-
-  機能の概要と目的を1-2文で説明。
-
-### 破壊的変更
-- **変更概要** (#PR番号)
-
-  変更内容と移行方法を説明。
-
-### 改善
-- **改善概要** (#PR番号)
-  改善の背景と効果を説明。
-
-## Contributors
-@username
-
-**Full Changelog**: https://github.com/{OWNER}/{REPO}/compare/v前バージョン...v現バージョン
-```
+- レスポンスの `body` が GitHub 標準形式（What's Changed / New Contributors / Full Changelog）のリリースノートになる
+- 初回リリースなど前バージョンが存在しない場合は `previous_tag_name` を省略する
+- 生成された内容は編集・加工せずそのまま使用する
 
 ### 6. ユーザー承認
 
@@ -198,19 +149,17 @@ PRタイトルのプレフィックスまたはコミットメッセージのプ
 
 **重要: `gh release create` はTLSエラーが発生することがあるため、必要に応じて `curl -sk` を使用すること。**
 
+手順5で保存した `/tmp/release-notes.json` の `body` をそのまま使用する（改行や引用符を含むため、jq でペイロードを構築して埋め込む）:
+
 ```bash
-curl -sk -X POST \
-  -H "Authorization: token $(gh auth token 2>/dev/null)" \
-  -H "Content-Type: application/json" \
-  "https://api.github.com/repos/${REPO}/releases" \
-  -d '{
-    "tag_name": "vX.Y.Z",
-    "target_commitish": "main",
-    "name": "vX.Y.Z",
-    "body": "リリースノート本文",
-    "draft": false,
-    "prerelease": false
-  }'
+jq --arg tag "vX.Y.Z" \
+  '{tag_name: $tag, target_commitish: "main", name: $tag, body: .body, draft: false, prerelease: false}' \
+  /tmp/release-notes.json \
+  | curl -sk -X POST \
+      -H "Authorization: token $(gh auth token 2>/dev/null)" \
+      -H "Content-Type: application/json" \
+      "https://api.github.com/repos/${REPO}/releases" \
+      -d @-
 ```
 
 ### 8. 完了報告
