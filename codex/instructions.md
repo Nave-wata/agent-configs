@@ -9,4 +9,4 @@
 - Confirm ambiguous requirements before implementation when multiple behavior interpretations are plausible.
 - Consult the `advisor` custom agent once as a read-only second opinion before committing to a consequential design or finalizing work that is broad, security-sensitive, performance-sensitive, or crosses authentication, authorization, SQL, multilingual, or external API boundaries, or when a difficult bug remains uncertain.
 - Do not use the advisor for routine implementation, small fixes, formatting, or documentation-only changes. Give it a narrow question, use at most one advisor at a time, and independently verify its advice before acting on it.
-- Claude slash-command style workflows are available as Codex repo skills under `.codex/skills`. Use `$commit`, `$create-pr`, `$review`, and `$release` when those workflows are requested.
+- Claude slash-command style workflows are available as Codex repo skills under `.codex/skills`. Use `$commit`, `$create-pr`, and `$release` when those workflows are requested.

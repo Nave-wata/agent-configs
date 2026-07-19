@@ -1,31 +1,10 @@
 # Project command policy.
 
 prefix_rule(
-    pattern = ["git", "push", "origin", "main"],
+    pattern = ["git", "config"],
     decision = "forbidden",
-    justification = "Do not push directly to main. Create a feature branch and open a PR.",
-    match = ["git push origin main"],
-)
-
-prefix_rule(
-    pattern = ["git", "push", "--force"],
-    decision = "forbidden",
-    justification = "Force push is destructive and requires explicit user confirmation outside the default workflow.",
-    match = ["git push --force origin feature/example"],
-)
-
-prefix_rule(
-    pattern = ["git", "push", "--force-with-lease"],
-    decision = "forbidden",
-    justification = "Force push is destructive and requires explicit user confirmation outside the default workflow.",
-    match = ["git push --force-with-lease origin feature/example"],
-)
-
-prefix_rule(
-    pattern = ["sudo"],
-    decision = "forbidden",
-    justification = "Privileged local commands are outside this repository workflow.",
-    match = ["sudo systemctl restart apache2"],
+    justification = "Git configuration must not be changed automatically.",
+    match = ["git config user.email dev@example.com"],
 )
 
 prefix_rule(
@@ -48,4 +27,3 @@ prefix_rule(
     justification = "Cloud destruction must never be automated by Codex.",
     match = ["cdk destroy"],
 )
-
