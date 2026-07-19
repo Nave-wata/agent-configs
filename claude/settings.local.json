@@ -35,6 +35,15 @@
     "context7@claude-plugins-official": true,
     "codex@openai-codex": true
   },
+  "extraKnownMarketplaces": {
+    "openai-codex": {
+      "source": {
+        "source": "github",
+        "repo": "openai/codex-plugin-cc"
+      },
+      "autoUpdate": true
+    }
+  },
   "viewMode": "focus",
   "language": "Japanese",
   "advisorModel": "fable",
@@ -45,5 +54,5 @@
   "agentPushNotifEnabled": true,
   "skipAutoPermissionPrompt": true,
   "voiceEnabled": true,
-  "effort": "high"
+  "effortLevel": "high"
 }
