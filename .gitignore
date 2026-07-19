@@ -19,6 +19,10 @@ __pycache__/
 !**/CLAUDE.md
 !**/opencode.json
 
+# グローバル ignore が **/AGENTS.md も無視するが、このリポの LLM 向け基盤ドキュメント
+# （正本。CLAUDE.md は @AGENTS.md の 1 行ラッパー）なので追跡対象に戻す
+!**/AGENTS.md
+
 # .claude/.codex/.opencode はこのリポジトリ自身に対する動作確認用インスタンスであり、
 # 配布物（claude/, codex/, opencode/）とは別物なので追跡しない
 /.claude/
