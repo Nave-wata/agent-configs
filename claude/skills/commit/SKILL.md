@@ -57,8 +57,6 @@ git status と diff を確認し、以下を判断する:
 
 変更の経緯
 変更の内容
-
-Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
 ```
 
 #### 変更タイプ
@@ -81,8 +79,6 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
   ```bash
   git commit -m "$(cat <<'EOF'
   #123 [feat]: メッセージ
-
-  Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
   EOF
   )"
   ```
