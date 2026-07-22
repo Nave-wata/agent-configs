@@ -8,6 +8,7 @@
 #     agent-setup --claude             # claude のみ展開
 #     agent-setup --claude --codex <path>  # 複数指定 + 展開先指定
 #     agent-setup -y                   # 確認プロンプトを出さずに展開
+#     agent-setup --no-update          # 配布元の自動更新（git pull）を行わない
 #
 #   方式:
 #     リポジトリ内の各ソースディレクトリ（claude/ codex/ opencode/）を、
@@ -20,6 +21,17 @@
 #     導出するため、SOURCES にツールを足せばフラグも自動で増える。
 #     フラグ無指定なら全ツールが対象（従来どおり）。
 #     選ばなかったツールの既存展開ファイルには一切触らない。
+#
+#   配布元の自動更新:
+#     展開の前に配布元リポジトリを git pull --ff-only で最新化する（pull し忘れた
+#     まま古い設定を配ってしまう事故の防止）。ただしリポジトリの状態を変える操作は
+#     fast-forward pull のみに限定し、次の場合は警告してローカルの内容で続行する:
+#       - 配布元が git リポジトリでない
+#       - 作業ツリーに未コミットの変更がある（正本を main で直接編集する運用のため、
+#         編集途中の実行は想定内。stash 等で無理に進めない）
+#       - pull 失敗（ネットワーク不通・fast-forward 不可・追跡ブランチなし等）
+#     GIT_TERMINAL_PROMPT=0 を付け、認証プロンプトで無限に待つ事故を防ぐ。
+#     --no-update で更新自体をスキップできる。
 #
 #   更新（マニフェスト方式）:
 #     展開したファイル一覧を対象プロジェクトの .agent-configs-manifest に記録する。
@@ -68,15 +80,20 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 SOURCES="claude codex opencode"
 
 # --- 引数パース（--<ツール名> フラグ / -y / 展開先パス） ---
-# SELECTED … 今回の展開対象。フラグ未指定なら SOURCES 全部にフォールバックする。
-# YES      … 1 なら確認プロンプトを省略する。
+# SELECTED  … 今回の展開対象。フラグ未指定なら SOURCES 全部にフォールバックする。
+# YES       … 1 なら確認プロンプトを省略する。
+# NO_UPDATE … 1 なら配布元の自動更新（git pull）を行わない。
 SELECTED=""
 TARGET_ARG=""
 YES=0
+NO_UPDATE=0
 for arg in "$@"; do
   case "$arg" in
     -y|--yes)
       YES=1
+      ;;
+    --no-update)
+      NO_UPDATE=1
       ;;
     --*)
       name="${arg#--}"
@@ -89,6 +106,7 @@ for arg in "$@"; do
         echo "       指定できるのは以下のいずれかです:" >&2
         for src in $SOURCES; do echo "         --$src" >&2; done
         echo "         -y, --yes" >&2
+        echo "         --no-update" >&2
         exit 1
       fi
       # 同じフラグを重ねて渡されても SELECTED が重複しないようにする
@@ -145,6 +163,26 @@ if [ "$_found_src" -eq 0 ]; then
   echo "エラー: 配布元が見つかりません（REPO_ROOT=$REPO_ROOT）。" >&2
   echo "       agent-setup の配置、またはリポルートの解決を確認してください。" >&2
   exit 1
+fi
+
+# --- 0. 配布元の自動更新（git pull --ff-only）。失敗しても展開は続行する ---
+if [ "$NO_UPDATE" -eq 0 ]; then
+  if ! git -C "$REPO_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
+    printf '%s警告: 配布元が git リポジトリではないため更新をスキップします。%s\n' "$C_UPD" "$C_RST" >&2
+  elif [ -n "$(git -C "$REPO_ROOT" status --porcelain 2>/dev/null)" ]; then
+    printf '%s警告: 配布元に未コミットの変更があるため更新をスキップします。%s\n' "$C_UPD" "$C_RST" >&2
+  else
+    _before="$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || true)"
+    if _pull_err="$(GIT_TERMINAL_PROMPT=0 git -C "$REPO_ROOT" pull --ff-only --quiet 2>&1)"; then
+      _after="$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || true)"
+      if [ -n "$_before" ] && [ "$_before" != "$_after" ]; then
+        printf '配布元を更新しました (%s → %s)\n' "$_before" "$_after"
+      fi
+    else
+      printf '%s警告: 配布元の更新に失敗しました。ローカルの内容で続行します。%s\n' "$C_UPD" "$C_RST" >&2
+      printf '%s       %s%s\n' "$C_DIM" "$(printf '%s' "$_pull_err" | head -n 1)" "$C_RST" >&2
+    fi
+  fi
 fi
 
 # --- 1. 走査：今回配るファイルを洗い出し、追加/更新を分類する（まだ書き換えない） ---
