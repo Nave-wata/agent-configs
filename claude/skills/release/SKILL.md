@@ -1,7 +1,6 @@
 ---
 name: release
-description: PRマージ後のリリース作成（バージョン算出・リリースノート生成・GitHub Release作成）。GitHub Release という公開操作のため、ユーザーが明示的に呼び出した時のみ実行する
-disable-model-invocation: true
+description: PRマージ後のリリース作成（バージョン算出・リリースノート生成・GitHub Release作成）。「リリースして」「release」「リリース作成」など、リリース作成を依頼された時に自動で使用する。GitHub Release という公開操作のため、作成前に必ずユーザーの承認を得る
 allowed-tools: Bash, Read, Grep, Glob, AskUserQuestion
 argument-hint: <PR URL or PR number>
 ---

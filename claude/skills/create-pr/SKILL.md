@@ -1,7 +1,6 @@
 ---
 name: create-pr
-description: コミット済みの変更を push し、GitHub PR を Draft で作成。Issueラベル更新まで一括実行。push と PR 作成という公開操作を伴うため、ユーザーが明示的に呼び出した時のみ実行する
-disable-model-invocation: true
+description: コミット済みの変更を push し、GitHub PR を Draft で作成。Issueラベル更新まで一括実行。「PR作成して」「PR出して」「プルリク作って」など、PR 作成を依頼された時に自動で使用する。push と PR 作成という公開操作を伴うため、実行前に必ずユーザーの承認を得る
 allowed-tools: Bash(git push:*), Bash(git status:*), Bash(git diff:*), Bash(git branch:*), Bash(git log:*), Bash(gh:*), Bash(curl:*), AskUserQuestion
 argument-hint: <issue番号 or issue URL>
 ---
@@ -49,6 +48,8 @@ curl -sk -H "Authorization: token $(gh auth token 2>/dev/null)" \
 - ラベル → PRのラベルに使用（プロジェクトにバージョンラベル運用がある場合）
 
 ### 3. プッシュ
+
+**push 前に対象ブランチ・コミット内容を提示して、必ずユーザーの承認を得ること**（push と PR 作成は公開操作のため。スキルの呼び出し経緯によらず省略しない）。
 
 リモートにプッシュする。上流ブランチが未設定の場合は `-u` フラグを付与する。
 
