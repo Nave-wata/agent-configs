@@ -28,6 +28,21 @@
     "type": "command",
     "command": ".claude/statuslines/entry.sh"
   },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PROJECT_DIR:-.}\"/.claude/hooks/install-plugins.sh",
+            "async": true,
+            "timeout": 1800
+          }
+        ]
+      }
+    ]
+  },
   "enabledPlugins": {
     "security-guidance@claude-plugins-official": true,
     "pr-review-toolkit@claude-plugins-official": true,
