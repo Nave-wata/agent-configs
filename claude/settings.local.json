@@ -6,7 +6,7 @@
     "CLAUDE_CODE_ENABLE_TASKS": "1",
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
     "CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH": "3",
-    "ANTHROPIC_MODEL": "claude-fable-5"
+    "ANTHROPIC_MODEL": "claude-opus-5[1m]"
   },
   "permissions": {
     "deny": [

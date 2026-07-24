@@ -7,6 +7,8 @@
 
 The main session's job is orchestration: task breakdown, design decisions, and reviewing results. The goal is to keep the main context limited to information needed for decisions — delegate work whose intermediate output is large.
 
+The criterion for delegating is the volume of intermediate output, not a capability gap between models. The main session already runs on a top-tier model, so delegation is never about reaching for a stronger one; it is about not spending the main context on material that only matters while the work is in progress.
+
 Delegate to subagents (Agent tool):
 
 - Codebase exploration and investigation spanning multiple files
@@ -19,11 +21,11 @@ Do directly (delegation overhead exceeds savings):
 - Reading short outputs needed verbatim for decisions (e.g., review comments)
 - Any operation that completes in 1-2 tool calls with short output
 
-Model selection for subagents:
+Model selection for subagents (the main session runs on `opus`):
 
-- Default: `opus` (also when unsure)
+- Default: `opus` (also when unsure) — the same tier as the main session
 - Simple tasks (search, mechanical edits, small fixes): `sonnet`
-- Heavy tasks (complex design, hard debugging, large refactors): `fable`
+- Heavy tasks (complex design, hard debugging, large refactors), and any delegation where the subagent must both make its own judgment calls and carry out the resulting work: `fable`
 
 ### Nested Subagents
 
@@ -31,7 +33,7 @@ Subagent nesting is enabled (`CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=3` in setting
 
 - Good fit: hierarchical fan-out of independent subtasks — a coordinator dispatching parallel specialist workers (e.g., multi-perspective review), per-directory/per-component analysis in a large repo, investigation that fans out as it digs deeper.
 - Structure for parallel decomposition, not pipelines: each layer has an isolated context, so order-dependent steps belong within one agent rather than across layers.
-- Token cost scales with the total number of agents spawned, so match model to layer: `sonnet` for leaf workers, `opus`/`fable` for coordinators and hard verification.
+- Token cost scales with the total number of agents spawned, so match model to layer: `sonnet` for leaf workers, `opus` for coordinators, and `fable` for coordinators that decide and execute on their own, and for hard verification.
 - Communication is child-to-parent reporting only; design the tree so results roll up, and have siblings coordinate through their parent.
 
 ## Codex Plugin Usage
