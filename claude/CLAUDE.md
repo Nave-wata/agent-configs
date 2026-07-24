@@ -25,6 +25,15 @@ Model selection for subagents:
 - Simple tasks (search, mechanical edits, small fixes): `sonnet`
 - Heavy tasks (complex design, hard debugging, large refactors): `fable`
 
+### Nested Subagents
+
+Subagent nesting is enabled (`CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=3` in settings). It extends the Subagent-First workflow one level down: a coordinator subagent can itself dispatch workers, keeping both the main context and the coordinator's context clean.
+
+- Good fit: hierarchical fan-out of independent subtasks — a coordinator dispatching parallel specialist workers (e.g., multi-perspective review), per-directory/per-component analysis in a large repo, investigation that fans out as it digs deeper.
+- Structure for parallel decomposition, not pipelines: each layer has an isolated context, so order-dependent steps belong within one agent rather than across layers.
+- Token cost scales with the total number of agents spawned, so match model to layer: `sonnet` for leaf workers, `opus`/`fable` for coordinators and hard verification.
+- Communication is child-to-parent reporting only; design the tree so results roll up, and have siblings coordinate through their parent.
+
 ## Codex Plugin Usage
 
 Codex (via the codex plugin) is an advisor providing an independent, cross-vendor second opinion — not a parallel implementation workforce. Routine implementation and exploration stay with Claude subagents.
