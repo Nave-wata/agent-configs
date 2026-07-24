@@ -309,6 +309,10 @@ fi
 printf '%s' "$copy_plan" | while IFS=$'\t' read -r from to; do
   [ -z "$from" ] && continue
   mkdir -p "$(dirname "$to")"
+  # 展開先に symlink が置かれていると cp はリンク先の実体へ書き込んでしまい、
+  # 展開先ツリー外のファイルを上書きしうる。先に unlink してから新規作成する
+  # （rm -f は symlink 自体を消し、リンク先には触らない。POSIX 範囲で移植性あり）。
+  rm -f "$to"
   cp "$from" "$to"
 done
 
