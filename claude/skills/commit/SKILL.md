@@ -1,79 +1,79 @@
 ---
 name: commit
-description: プロジェクトのコミットルールに準拠した git コミットを作成。「コミットして」「commit」「変更を保存」「git commit」など、コミット作成を依頼された時に自動で使用する。issue 番号は引数または会話文脈から取得し、未確定ならユーザーに確認する
+description: Creates a git commit that complies with the project's commit rules. Automatically used when asked to create a commit, e.g. 「コミットして」「commit」「変更を保存」「git commit」. Obtains the issue number from arguments or conversation context; if undetermined, asks the user.
 allowed-tools: Bash(git add:*), Bash(git status:*), Bash(git commit:*), Bash(git diff:*), Bash(git log:*), Bash(git branch:*), Bash(git checkout:*), Bash(git switch:*), AskUserQuestion
-argument-hint: <issue番号 or issue URL (optional)>
+argument-hint: <issue number or issue URL (optional)>
 ---
 
-# コミット作成
+# Create Commit
 
-## コンテキスト
+## Context
 
-- 現在のブランチ: !`git branch --show-current`
+- Current branch: !`git branch --show-current`
 - git status: !`git status`
-- 変更差分: !`git diff HEAD`
-- リポジトリ: !`gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || git remote get-url origin 2>/dev/null`
-- 最近のコミット: !`git log --oneline -10`
+- Diff: !`git diff HEAD`
+- Repository: !`gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || git remote get-url origin 2>/dev/null`
+- Recent commits: !`git log --oneline -10`
 
-## 実行手順
+## Execution Steps
 
-### 1. ブランチ確認
+### 1. Check the Branch
 
-現在のブランチが main の場合、自動的に作業ブランチを作成して切り替える:
+If the current branch is main, automatically create and switch to a working branch:
 
-1. Issue番号を確認する（ステップ2を先行実施。未確定ならユーザーに確認）
-2. `git branch -a` で既存ブランチの命名パターンを確認し、リポジトリの慣習に従ったブランチ名を決定する
-3. `git switch -c {ブランチ名}` で新しいブランチを作成・切り替える
-4. ユーザーにブランチ作成を報告し、続行する
+1. Confirm the issue number (do step 2 first; if undetermined, ask the user)
+2. Check existing branch naming patterns with `git branch -a` and decide a branch name following the repository's conventions
+3. Create and switch to a new branch with `git switch -c {branch-name}`
+4. Report the branch creation to the user and continue
 
-### 2. Issue番号の確認
+### 2. Confirm the Issue Number
 
-$ARGUMENTS から issue番号を抽出する（URLからの抽出も可）。引数がない場合や issue番号として解釈できない場合は、ユーザーに issue番号を確認すること。推測で進めないこと。
+Extract the issue number from $ARGUMENTS (extraction from a URL is also fine). If there is no argument or it cannot be interpreted as an issue number, ask the user for the issue number. Do not proceed by guessing.
 
-### 3. 変更の分析
+### 3. Analyze the Changes
 
-git status と diff を確認し、以下を判断する:
-- ステージすべきファイル（.env やクレデンシャルファイルは除外）
-- 適切な変更タイプ
-- コミットメッセージの内容
+Check git status and diff, and determine the following:
+- Which files to stage (exclude .env and credential files)
+- The appropriate change type
+- The content of the commit message
 
-### 4. コミットの作成
+### 4. Create the Commit
 
-以下のフォーマットでコミットを作成する:
+Create the commit in the following format (the actual commit summary/body text must be written in Japanese):
 
 ```
-#issue番号 [変更タイプ]: コミットメッセージ
+#<issue-number> [<change-type>]: <commit summary>
 
-変更の経緯
-変更の内容
+<background of the change>
+<content of the change>
 ```
 
-#### 変更タイプ
+#### Change Types
 
-| タイプ | 用途 |
+| Type | Purpose |
 |--------|------|
-| feat | 機能追加 |
-| update | 既存機能の変更や強化 |
-| fix | バグの修正 |
-| refactor | 動作の変更なくリファクタリングのみ |
-| test | テストコードの追加・修正のみ |
-| chore | ライブラリの追加やgithub actionsの設定など |
+| feat | New feature |
+| update | Changes or enhancements to an existing feature |
+| fix | Bug fix |
+| refactor | Refactoring only, no behavior change |
+| test | Adding/modifying test code only |
+| chore | Adding libraries, configuring GitHub Actions, etc. |
 
-#### ルール
+#### Rules
 
-- **サマリ行（1行目）には「コードがどう変わったか」を書く**。「レビュー対応」「指摘修正」「修正」のような、何が変わったか分からないメッセージは禁止。レビュー起因の修正でも `[fix]: null 参照でクラッシュする問題を修正`、`[refactor]: 重複バリデーションを共通関数に集約` のように変更内容で表現する
-  - 「レビューで指摘されたため」といった**経緯を残したい場合は本文の「変更の経緯」行や Issue のナレッジコメントに書く**（サマリ行には書かない）
-- 詳細説明（変更の経緯/変更の内容）は簡単な変更の場合は省略可能
-- HEREDOCを使用してコミットメッセージを渡すこと:
+- **The summary line (line 1) must state "how the code changed."** Messages that don't convey what changed — like "review response," "addressed feedback," or "fix" — are prohibited. Even for review-driven fixes, phrase it as the actual change, e.g. `[fix]: null 参照でクラッシュする問題を修正` ("fixed a crash caused by a null reference") or `[refactor]: 重複バリデーションを共通関数に集約` ("consolidated duplicate validation into a shared function") — write these in Japanese, since commit messages are written in Japanese
+  - If you want to **preserve the background**, e.g. "because it was flagged in review," **write it in the body's "background of the change" line or in an Issue knowledge comment** (not in the summary line)
+- The detailed description (background of the change / content of the change) can be omitted for simple changes
+- Pass the commit message using a HEREDOC:
   ```bash
   git commit -m "$(cat <<'EOF'
   #123 [feat]: メッセージ
   EOF
   )"
   ```
-- ファイルのステージは `git add -A` ではなく個別にファイル名を指定する
-- 設計判断の理由や原因調査の経緯など、後から参照したい情報は本文の「変更の経緯」に書く
+- Stage files by specifying individual filenames, not `git add -A`
+- Write information you'll want to reference later — such as the reasoning behind design decisions or the process of root-cause investigation — in the body's "background of the change" section
 
-### 5. 結果報告
+### 5. Report the Result
 
-コミット完了後、`git status` で結果を確認し報告する。
+After the commit completes, check the result with `git status` and report it.

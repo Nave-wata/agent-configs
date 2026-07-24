@@ -44,7 +44,7 @@ curl -sk -H "Authorization: token $(gh auth token 2>/dev/null)" \
    - MAJOR: `vX.0.0`
    - MINOR: `vX.Y+1.0`
    - PATCH: `vX.Y.Z+1`
-6. Draft release notes in Japanese, with no emoji, grouped by actual change category. Use PR-level content, not raw commit lists. Omit empty categories. Add a Contributors section mentioning the PR author (`@username`), and wrap code/directive names in backticks. Category mapping: `feat`→新機能, `update`→改善, `fix`→バグ修正, `refactor`→リファクタリング, `chore`→メンテナンス, plus 破壊的変更 for MAJOR.
+6. Draft release notes in Japanese, with no emoji, grouped by actual change category. Use PR-level content, not raw commit lists. Omit empty categories. Add a Contributors section mentioning the PR author (`@username`), and wrap code/directive names in backticks. Category mapping (the Japanese labels are used verbatim as section headers — the English in brackets is explanatory only, never emitted): `feat`→新機能 [new features], `update`→改善 [improvements], `fix`→バグ修正 [bug fixes], `refactor`→リファクタリング [refactoring], `chore`→メンテナンス [maintenance], plus 破壊的変更 [breaking changes] for MAJOR.
 7. Present the version and full release notes for approval. Do not create the release until approved.
 8. After approval, create the release with the GitHub API (prefer `curl -sk`; `gh release create` can be unreliable in this environment):
 

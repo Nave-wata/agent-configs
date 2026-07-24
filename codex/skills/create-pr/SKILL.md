@@ -47,13 +47,15 @@ git push -u origin "$(git branch --show-current)"
 ```sh
 gh pr create \
   --draft \
-  --title "PRタイトル" \
-  --body 'PR本文' \
+  --title "<PR title, written in Japanese>" \
+  --body '<PR body, written in Japanese>' \
   --assignee "<issue assignee>" \
   --label "<project label scheme, if any>"
 ```
 
 ### PR Body Template
+
+The template below is written entirely in Japanese and is posted verbatim (after filling in placeholders and deleting non-applicable list items) as the PR body — do not translate its headings or content.
 
 ```markdown
 ## 対応したISSUE
@@ -100,8 +102,8 @@ curl -sk -H "Authorization: token $(gh auth token 2>/dev/null)" \
   | jq '[.[] | select(.body | contains("<!-- codex-dev-log -->"))] | .[0] | {id, body}'
 ```
 
-- Keep one "ナレッジ" section summarizing the whole Issue state from `git diff {base}...HEAD`; overwrite on each commit and always include the PR URL.
-- Keep one folded "開発ログ" `<details>` table, appending a row per commit and emphasizing why the change was made.
+- Keep one "ナレッジ" (knowledge) section, written in Japanese, summarizing the whole Issue state from `git diff {base}...HEAD`; overwrite on each commit and always include the PR URL.
+- Keep one folded "開発ログ" (dev log) `<details>` table, written in Japanese, appending a row per commit and emphasizing why the change was made.
 - PATCH the marked comment if it exists; otherwise create it with `gh issue comment {ISSUE_NUMBER}` (TLS fallback: `curl -sk`).
 
 ## Issue Status Label (only if the project uses one)

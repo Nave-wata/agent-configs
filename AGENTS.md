@@ -1,79 +1,79 @@
 # AGENTS.md
 
-## プロジェクト概要
+## Project Overview
 
-agent-configs は、複数の AI コーディングエージェント（Claude Code / Codex / opencode）の設定・スキルを 1 リポジトリに統合し、`agent-setup` スクリプトで各プロジェクトへ展開・更新するための設定配布リポジトリ。
+agent-configs is a configuration-distribution repository that consolidates settings and skills for multiple AI coding agents (Claude Code / Codex / opencode) into a single repo, and deploys/updates them to each project via the `agent-setup` script.
 
-## 作業時の注意事項
+## Notes When Working
 
-### 配布元と動作確認用インスタンスの二重構造
+### The Dual Structure of Distribution Source and Verification Instance
 
-- トップレベルの `claude/` `codex/` `opencode/` が **正本（配布元）**。編集は必ずこちらに行う
-- `.claude/` `.codex/` `.opencode/` は、このリポジトリ自身に `agent-setup` を実行した **動作確認用インスタンス**（git 管理外）
-- 配布元を変更したら `bin/agent-setup` をこのリポジトリ自身に再実行して反映・動作確認する
+- The top-level `claude/` `codex/` `opencode/` are the **source of truth (distribution source)**. Always make edits here
+- `.claude/` `.codex/` `.opencode/` are the **verification instance** produced by running `agent-setup` on this repository itself (not tracked by git)
+- After changing the distribution source, rerun `bin/agent-setup` on this repository itself to apply and verify the changes
 
-### 展開はコピー方式
+### Deployment Uses Copying
 
-シンボリックリンクではなくコピーで展開する（sbx 実行時のリンク切れ防止）。 中央を編集しても各プロジェクトには自動反映されず、各プロジェクトでの `agent-setup` 再実行が必要。
+Deployment copies files rather than creating symlinks (to prevent broken links when running under sbx). Editing the central source does not automatically propagate to each project; `agent-setup` must be rerun in each project.
 
-### 移植性の維持
+### Maintaining Portability
 
-スキル・設定内でリポジトリ名や特定マシンのパスをハードコードしない。リポジトリ情報は実行時に `gh` / `git remote` から動的取得する。
+Do not hardcode repository names or machine-specific paths in skills/settings. Retrieve repository information dynamically at runtime from `gh` / `git remote`.
 
-## 技術スタック
+## Tech Stack
 
-- 展開スクリプト: Bash（`bin/agent-setup`）
-- Codex hooks: Python 3（標準ライブラリのみ）
-- 配布物: Markdown（CLAUDE.md・スキル）/ JSON / TOML
-- 実行環境: ローカルのみ（本番環境・DB・CI なし）。エージェントの実行は **sbx（Docker Sandboxes）を前提** とする
+- Deployment script: Bash (`bin/agent-setup`)
+- Codex hooks: Python 3 (standard library only)
+- Distributed artifacts: Markdown (CLAUDE.md, skills) / JSON / TOML
+- Runtime environment: local only (no production environment, DB, or CI). Agent execution **assumes sbx (Docker Sandboxes)**
 
-## ディレクトリ構造
+## Directory Structure
 
 ```
 agent-configs/
-├── bin/agent-setup   # 展開スクリプト（これ 1 本で配布・更新）
-├── claude/           # → <project>/.claude/ に展開（CLAUDE.md・スキル・statusline）
-├── codex/            # → <project>/.codex/ に展開（config・hooks・rules・スキル）
-└── opencode/         # → <project>/.opencode/ に展開（設定・agents・スキル）
+├── bin/agent-setup   # deployment script (this single file handles distribution and updates)
+├── claude/           # → deployed to <project>/.claude/ (CLAUDE.md, skills, statusline)
+├── codex/            # → deployed to <project>/.codex/ (config, hooks, rules, skills)
+└── opencode/         # → deployed to <project>/.opencode/ (settings, agents, skills)
 ```
 
-各トップレベルディレクトリ `X/` が展開先プロジェクトの `.X/` に対応する。
+Each top-level directory `X/` corresponds to `.X/` in the destination project.
 
-## 主要コマンド
+## Main Commands
 
 ```sh
-# このリポジトリ自身へ展開して動作確認
+# Deploy to this repository itself and verify
 bin/agent-setup -y .
 
-# ツールを絞って展開
+# Deploy only specific tools
 bin/agent-setup --claude -y .
 
-# Bash 構文チェック
+# Bash syntax check
 bash -n bin/agent-setup
 ```
 
-テスト / Lint / CI はいずれも **未整備**（shellcheck 等の導入は独断せずレビューで相談）。
+Tests / lint / CI are all **not yet set up** (don't unilaterally introduce shellcheck etc. — discuss it in review).
 
-## ブランチ・コミット運用
+## Branch and Commit Practices
 
-- **main ブランチ上で直接作業・コミットするのが基本**。作業ブランチの作成や PR は不要。指示がない限り main で作業する。
-- コミットに **Issue 番号は付けない**。形式: `[<変更タイプ>]: <1 行サマリ>` + 経緯・内容（詳細は `/commit` スキル）
+- **Work and commit directly on the main branch by default.** No working branch or PR is needed. Work on main unless instructed otherwise.
+- **Do not attach an Issue number** to commits. Format: `[<change-type>]: <one-line summary>` + background/details, with the actual content written in Japanese (see the `/commit` skill for details)
 
-## 禁止事項
+## Prohibited
 
-- 認証情報（API キー・トークン等）のファイルへの記載・コミット。本プロジェクトは **sbx での利用を前提** とし、認証情報は `sbx secret` で注入する運用のため、設定ファイルには書かない（`settings.local.json` もこのリポジトリでは **git 追跡対象** である点に注意）
-- `.claude/` `.codex/` `.opencode/`（動作確認用インスタンス）のみを編集して作業を終えること（動作確認のための直接編集は可。最終的な変更は必ず配布元 `claude/` `codex/` `opencode/` に反映する）
-- 配布物への特定プロジェクト・特定マシン依存パスのハードコード
+- Writing or committing credentials (API keys, tokens, etc.) to files. This project **assumes use within sbx**, and credentials are injected via `sbx secret`, so do not write them into config files (note that `settings.local.json` **is tracked by git** in this repository)
+- Finishing work having edited only `.claude/` `.codex/` `.opencode/` (the verification instances) (direct edits for verification purposes are fine; the final change must always be reflected in the distribution source `claude/` `codex/` `opencode/`)
+- Hardcoding project-specific or machine-specific paths into distributed artifacts
 
-## 不明点がある場合の振る舞い
+## Behavior When Something Is Unclear
 
-- 仕様・方針が不明瞭な場合は、実装を進める前に **ユーザーへ確認** する
-- 複数の解釈が成立する場合は、候補を提示して判断を仰ぐ
+- If the spec or policy is unclear, **confirm with the user** before proceeding with implementation
+- If multiple interpretations are possible, present the candidates and ask for a decision
 
-## 作業完了前のチェック
+## Pre-Completion Checklist
 
-テスト未整備のため手動確認ベース:
+Since tests are not set up, this is manual-verification based:
 
-- [ ] スクリプト変更時: `bash -n bin/agent-setup` が通り、`bin/agent-setup -y .` で展開結果・マニフェストが期待どおり
-- [ ] 配布物変更時: README.md の記載（構成・スキル移植範囲表）と矛盾していないか確認
-- [ ] 変更差分を通読し、想定外の変更がないか確認
+- [ ] When changing the script: `bash -n bin/agent-setup` passes, and `bin/agent-setup -y .` produces the expected deployment results/manifest
+- [ ] When changing distributed artifacts: confirm no contradiction with README.md's description (structure, skill-porting scope table)
+- [ ] Read through the diff and confirm there are no unexpected changes
